@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import Program from '@/models/Program';
+import { db, COLS } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  await connectDB();
-  return NextResponse.json(await Program.find().sort({ createdAt: -1 }).lean());
+  const pool = await db();
+  const r = await pool.query(`SELECT ${COLS} FROM programs ORDER BY created_at DESC`);
+  return NextResponse.json(r.rows);
 }
 
 export async function POST(req: Request) {
   const { title } = await req.json();
   if (!title || !String(title).trim()) return NextResponse.json({ error: 'Title is required' }, { status: 400 });
-  await connectDB();
-  return NextResponse.json(await Program.create({ title: String(title).trim() }), { status: 201 });
+  const pool = await db();
+  const r = await pool.query(`INSERT INTO programs (title) VALUES ($1) RETURNING ${COLS}`, [String(title).trim()]);
+  return NextResponse.json(r.rows[0], { status: 201 });
 }

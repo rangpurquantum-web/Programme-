@@ -1,27 +1,44 @@
 import { NextResponse } from 'next/server';
-import { connectDB } from '@/lib/mongodb';
-import Program from '@/models/Program';
+import { db, COLS } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 type Ctx = { params: { id: string } };
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const notFound = () => NextResponse.json({ error: 'Not found' }, { status: 404 });
+
 export async function GET(_: Request, { params }: Ctx) {
-  await connectDB();
-  const p = await Program.findById(params.id).lean();
-  return p ? NextResponse.json(p) : NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (!UUID.test(params.id)) return notFound();
+  const pool = await db();
+  const r = await pool.query(`SELECT ${COLS} FROM programs WHERE id = $1`, [params.id]);
+  return r.rows[0] ? NextResponse.json(r.rows[0]) : notFound();
 }
 
 export async function PATCH(req: Request, { params }: Ctx) {
+  if (!UUID.test(params.id)) return notFound();
   const b = await req.json();
-  const patch: Record<string, unknown> = {};
-  for (const k of ['title', 'items', 'currentIndex', 'isLive']) if (k in b) patch[k] = b[k];
-  await connectDB();
-  const p = await Program.findByIdAndUpdate(params.id, patch, { new: true }).lean();
-  return p ? NextResponse.json(p) : NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const pool = await db();
+  const r = await pool.query(
+    `UPDATE programs SET
+       title = COALESCE($2, title),
+       items = COALESCE($3::jsonb, items),
+       current_index = COALESCE($4, current_index),
+       is_live = COALESCE($5, is_live)
+     WHERE id = $1 RETURNING ${COLS}`,
+    [
+      params.id,
+      'title' in b ? b.title : null,
+      'items' in b ? JSON.stringify(b.items) : null,
+      'currentIndex' in b ? b.currentIndex : null,
+      'isLive' in b ? b.isLive : null,
+    ]
+  );
+  return r.rows[0] ? NextResponse.json(r.rows[0]) : notFound();
 }
 
 export async function DELETE(_: Request, { params }: Ctx) {
-  await connectDB();
-  await Program.findByIdAndDelete(params.id);
+  if (!UUID.test(params.id)) return notFound();
+  const pool = await db();
+  await pool.query('DELETE FROM programs WHERE id = $1', [params.id]);
   return NextResponse.json({ ok: true });
 }
