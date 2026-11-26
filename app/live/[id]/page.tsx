@@ -82,13 +82,15 @@ export default function Live({ params }: { params: { id: string } }) {
   if (!p) return <main className="live"><p className="now">Loading…</p></main>;
 
   const wait = p.startAt ? new Date(p.startAt).getTime() - (now + skew) : 0;
-  const bg = p.background;
-  const bgStyle = bg && bg !== 'night' ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
+  const bg = p.background || '';
+  const isCode = bg.startsWith('code:');
+  const bgStyle = bg && bg !== 'night' && !isCode ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
 
   return (
     <main className="live">
       {wait > 0 && <div className="count"><span>The program will start in:</span><b>{left(wait)}</b></div>}
       <div className={`player ${bg === 'night' ? 'night' : ''}`} style={bgStyle} ref={box}>
+        {isCode && <iframe srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`} sandbox="allow-scripts" title="Background" style={{ ...fill, pointerEvents: 'none' }} />}
         {bg === 'night' && (
           <>
             <div className="stars">{stars.map((s, i) => <i key={i} style={{ top: `${s.t}%`, left: `${s.l}%`, animationDelay: `${s.d}s` }} />)}</div>
