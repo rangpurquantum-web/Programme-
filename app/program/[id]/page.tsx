@@ -28,11 +28,13 @@ const empty = { title: '', text: '', image: '', audio: '', video: '', countdown:
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
 
 function Mon({ label, tone, item, bg, title, off }: { label: string; tone: string; item?: Item; bg: string; title: string; off?: boolean }) {
-  const style = bg && bg !== 'night' ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
+  const isCode = bg.startsWith('code:');
+  const style = bg && bg !== 'night' && !isCode ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
   return (
     <div className={`opmon ${tone}`}>
       <div className="oplabel">{label}</div>
       <div className={`player mon ${bg === 'night' ? 'night' : ''}`} style={style}>
+        {isCode && <iframe srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`} sandbox="allow-scripts" title="Background" style={{ ...fill, pointerEvents: 'none' }} />}
         {!item && <div className="slide"><h1>{title}</h1></div>}
         {item && item.countdown && <div className="slide"><h1>{item.text || item.title}</h1><p className="big">Break {Math.round(item.countdown / 60)} min</p></div>}
         {item && !item.countdown && item.video && <div className="slide"><h1>▶ Video</h1><p>{item.title}</p></div>}
@@ -56,6 +58,7 @@ export default function Control({ params }: { params: { id: string } }) {
   const [editing, setEditing] = useState<number | null>(null);
   const [f, setF] = useState(empty);
   const [bg, setBg] = useState('');
+  const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
   const set = (k: string, v: string) => setF((o) => ({ ...o, [k]: v }));
 
@@ -78,6 +81,7 @@ export default function Control({ params }: { params: { id: string } }) {
 
   if (!p) return <main className="op">Loading…</main>;
 
+  const bgNow = p.background || '';
   const si = Math.min(sel, Math.max(p.items.length - 1, 0));
   const prev = p.items[si];
   const liveItem = p.items[p.currentIndex];
@@ -132,8 +136,8 @@ export default function Control({ params }: { params: { id: string } }) {
       {tab === 'slides' && (
         <>
           <div className="opmons">
-            <Mon label="PREVIEW" tone="pv" item={prev} bg={p.background} title={p.title} />
-            <Mon label="LIVE" tone="lv" item={liveItem} bg={p.background} title={p.title} off={!p.isLive} />
+            <Mon label="PREVIEW" tone="pv" item={prev} bg={bgNow} title={p.title} />
+            <Mon label="LIVE" tone="lv" item={liveItem} bg={bgNow} title={p.title} off={!p.isLive} />
           </div>
           <button className="oppush" disabled={!prev} onClick={() => save({ currentIndex: si })}>Push to live ▸</button>
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
@@ -183,7 +187,11 @@ export default function Control({ params }: { params: { id: string } }) {
             <input value={bg} onChange={(e) => setBg(e.target.value)} placeholder="Image link (e.g. /sky.jpg)" />
             <button onClick={() => { if (bg.trim()) { save({ background: bg.trim() }); setBg(''); } }}>Use image</button>
           </div>
-          <p className="sub">Now: {p.background === 'night' ? 'Night sky' : p.background || 'Plain'}</p>
+          <p className="sub">Now: {bgNow === 'night' ? 'Night sky' : bgNow.startsWith('code:') ? 'Custom code' : bgNow || 'Plain'}</p>
+          <h2>Custom code background</h2>
+          <p className="sub">Paste HTML, CSS or JavaScript. It runs behind your slides.</p>
+          <div className="row"><textarea value={code} onChange={(e) => setCode(e.target.value)} placeholder="<style>...</style>" rows={8} /></div>
+          <div className="row"><button onClick={() => { if (code.trim()) { save({ background: 'code:' + code }); setCode(''); } }}>Use code</button></div>
         </>
       )}
 
