@@ -20,6 +20,8 @@ export async function db() {
       )`);
       await pool.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS start_at timestamptz`);
       await pool.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS streams jsonb NOT NULL DEFAULT '[]'`);
+      await pool.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS background text NOT NULL DEFAULT ''`);
+      await pool.query(`ALTER TABLE programs ADD COLUMN IF NOT EXISTS shown_at timestamptz`);
     })().catch((e) => {
       g._ready = undefined;
       throw e;
@@ -29,4 +31,4 @@ export async function db() {
   return pool;
 }
 
-export const COLS = `id AS "_id", title, items, streams, start_at AS "startAt", current_index AS "currentIndex", is_live AS "isLive"`;
+export const COLS = `id AS "_id", title, items, start_at AS "startAt", background, shown_at AS "shownAt", now() AS "serverNow", current_index AS "currentIndex", is_live AS "isLive"`;
