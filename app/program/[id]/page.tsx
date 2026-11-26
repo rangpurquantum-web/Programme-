@@ -3,12 +3,21 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 
 type Item = { title: string; speaker: string; note: string };
-type P = { _id: string; title: string; items: Item[]; currentIndex: number; isLive: boolean };
+type Stream = { name: string; url: string };
+type P = { _id: string; title: string; items: Item[]; streams: Stream[]; startAt: string | null; currentIndex: number; isLive: boolean };
+
+const toLocal = (s: string | null) => {
+  if (!s) return '';
+  const d = new Date(s);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
 
 export default function Control({ params }: { params: { id: string } }) {
   const [p, setP] = useState<P | null>(null);
   const [t, setT] = useState('');
   const [s, setS] = useState('');
+  const [n, setN] = useState('');
+  const [u, setU] = useState('');
 
   const load = useCallback(async () => {
     const r = await fetch(`/api/programs/${params.id}`, { cache: 'no-store' });
@@ -35,11 +44,30 @@ export default function Control({ params }: { params: { id: string } }) {
         <button className={p.isLive ? 'live' : ''} onClick={() => save({ isLive: !p.isLive })}>{p.isLive ? 'Stop live' : 'Go live'}</button>
         <Link className="btn ghost" href={`/live/${p._id}`} target="_blank">Open live screen</Link>
       </div>
+
+      <h2>Start time</h2>
+      <div className="row">
+        <input type="datetime-local" value={toLocal(p.startAt)} onChange={(e) => save({ startAt: e.target.value ? new Date(e.target.value).toISOString() : null })} />
+      </div>
+
+      <h2>Video channels</h2>
+      {p.streams.map((st, i) => (
+        <div className="item" key={i}>
+          <div><strong>{st.name}</strong><small>{st.url}</small></div>
+          <button className="ghost" onClick={() => save({ streams: p.streams.filter((_, j) => j !== i) })}>Remove</button>
+        </div>
+      ))}
+      <div className="row">
+        <input value={n} onChange={(e) => setN(e.target.value)} placeholder="Name (LIVE 1)" />
+        <input value={u} onChange={(e) => setU(e.target.value)} placeholder="YouTube or embed link" />
+        <button onClick={() => { if (!n.trim() || !u.trim()) return; save({ streams: [...p.streams, { name: n.trim(), url: u.trim() }] }); setN(''); setU(''); }}>Add channel</button>
+      </div>
+
+      <h2>Program items</h2>
       <div className="row">
         <button className="ghost" onClick={() => go(p.currentIndex - 1)} disabled={p.currentIndex <= 0}>Previous</button>
         <button onClick={() => go(p.currentIndex + 1)} disabled={p.currentIndex >= last}>Next item</button>
       </div>
-
       {p.items.length === 0 && <div className="empty">Add the first item of your program below.</div>}
       {p.items.map((it, i) => (
         <div className={`item ${i === p.currentIndex && p.isLive ? 'now' : ''}`} key={i}>
@@ -53,7 +81,6 @@ export default function Control({ params }: { params: { id: string } }) {
           </div>
         </div>
       ))}
-
       <div className="row" style={{ marginTop: 16 }}>
         <input value={t} onChange={(e) => setT(e.target.value)} placeholder="Item title" />
         <input value={s} onChange={(e) => setS(e.target.value)} placeholder="Speaker (optional)" />
