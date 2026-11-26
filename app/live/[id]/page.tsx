@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 
 type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; auto?: boolean };
 type P = { title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean };
@@ -8,10 +8,14 @@ type Star = { t: number; l: number; d: number };
 const bn = (s: string) => s.replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[+d]);
 const two = (n: number) => bn(String(n).padStart(2, '0'));
 
-function embed(url: string, auto: boolean) {
+function embed(url: string, auto: boolean, start: number, mute: boolean) {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/))([\w-]{11})/);
   const u = m ? `https://www.youtube.com/embed/${m[1]}` : url;
-  return auto ? u + (u.includes('?') ? '&' : '?') + 'autoplay=1' : u;
+  const q: string[] = [];
+  if (auto) q.push('autoplay=1');
+  if (start > 1) q.push(`start=${start}`);
+  if (mute) q.push('mute=1');
+  return q.length ? u + (u.includes('?') ? '&' : '?') + q.join('&') : u;
 }
 
 function left(ms: number) {
@@ -31,12 +35,23 @@ export default function Live({ params }: { params: { id: string } }) {
   const [skew, setSkew] = useState(0);
   const [ready, setReady] = useState(false);
   const [host, setHost] = useState(false);
+  const [mon, setMon] = useState(false);
+  const [slide, setSlide] = useState<number | null>(null);
   const [stars, setStars] = useState<Star[]>([]);
   const box = useRef<HTMLDivElement>(null);
   const moved = useRef('');
+  const t0 = useRef(Date.now());
+  const yt = useRef({ k: '', s: 0 });
 
   useEffect(() => {
-    setHost(new URLSearchParams(window.location.search).get('host') === '1');
+    const q = new URLSearchParams(window.location.search);
+    setHost(q.get('host') === '1');
+    const m = q.get('mon') === '1';
+    setMon(m);
+    if (m) setReady(true);
+    const sl = q.get('slide');
+    setSlide(sl !== null && !isNaN(parseInt(sl)) ? parseInt(sl) : null);
+    t0.current = Date.now();
     setStars(Array.from({ length: 90 }, () => ({ t: Math.random() * 100, l: Math.random() * 100, d: Math.random() * 3 })));
     let on = true;
     async function tick() {
@@ -68,8 +83,11 @@ export default function Live({ params }: { params: { id: string } }) {
     }
   }
 
-  const cur = p && p.isLive ? p.items[p.currentIndex] : undefined;
-  const secs = cur?.countdown && p?.shownAt ? Math.max(0, Math.ceil((new Date(p.shownAt).getTime() + cur.countdown * 1000 - (now + skew)) / 1000)) : -1;
+  const idx = slide !== null ? slide : p ? p.currentIndex : 0;
+  const cur = p && (slide !== null || p.isLive) ? p.items[idx] : undefined;
+  const baseMs = slide !== null ? t0.current : p?.shownAt ? new Date(p.shownAt).getTime() : 0;
+  const nowMs = slide !== null ? now : now + skew;
+  const secs = cur?.countdown && baseMs ? Math.max(0, Math.ceil((baseMs + cur.countdown * 1000 - nowMs) / 1000)) : -1;
 
   useEffect(() => { if (secs === 0) advance(); });
 
@@ -81,14 +99,22 @@ export default function Live({ params }: { params: { id: string } }) {
 
   if (!p) return <main className="live"><p className="now">Loading…</p></main>;
 
+  const elapsed = () => (baseMs ? (Date.now() + (slide !== null ? 0 : skew) - baseMs) / 1000 : 0);
+  const seek = (e: SyntheticEvent<HTMLMediaElement>) => {
+    const t = elapsed();
+    if (t > 1.5) e.currentTarget.currentTime = t;
+  };
+  const yk = `${idx}:${p.shownAt}:${ready}:${slide}`;
+  if (yt.current.k !== yk) yt.current = { k: yk, s: Math.floor(elapsed()) };
+
   const wait = p.startAt ? new Date(p.startAt).getTime() - (now + skew) : 0;
   const bg = p.background || '';
   const isCode = bg.startsWith('code:');
   const bgStyle = bg && bg !== 'night' && !isCode ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
 
   return (
-    <main className="live">
-      {wait > 0 && <div className="count"><span>The program will start in:</span><b>{left(wait)}</b></div>}
+    <main className={`live ${mon ? 'monpage' : ''}`}>
+      {!mon && wait > 0 && <div className="count"><span>The program will start in:</span><b>{left(wait)}</b></div>}
       <div className={`player ${bg === 'night' ? 'night' : ''}`} style={bgStyle} ref={box}>
         {isCode && <iframe srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`} sandbox="allow-scripts" title="Background" style={{ ...fill, pointerEvents: 'none' }} />}
         {bg === 'night' && (
@@ -106,8 +132,8 @@ export default function Live({ params }: { params: { id: string } }) {
         )}
         {cur && !cur.countdown && cur.video && (
           isFile(cur.video)
-            ? <video key={cur.video + ready} src={cur.video} controls playsInline autoPlay={ready} onEnded={advance} style={fill} />
-            : <iframe key={cur.video + ready} src={embed(cur.video, ready)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen style={fill} />
+            ? <video key={cur.video + ready} src={cur.video} controls={!mon} muted={mon} playsInline autoPlay={ready} onLoadedMetadata={seek} onEnded={advance} style={fill} />
+            : <iframe key={cur.video + ready} src={embed(cur.video, ready, yt.current.s, mon)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen style={fill} />
         )}
         {cur && !cur.countdown && !cur.video && cur.image && (
           <>
@@ -118,11 +144,11 @@ export default function Live({ params }: { params: { id: string } }) {
         {cur && !cur.countdown && !cur.video && !cur.image && (
           <div className="slide"><h1>{cur.text || cur.title}</h1>{cur.speaker && <p>{cur.speaker}</p>}</div>
         )}
-        {ready && cur && !cur.video && cur.audio && <audio key={cur.audio} src={cur.audio} autoPlay onEnded={advance} />}
+        {ready && cur && !cur.video && cur.audio && <audio key={cur.audio} src={cur.audio} muted={mon} autoPlay onLoadedMetadata={seek} onEnded={advance} />}
         {cur && !ready && <button className="playbtn" onClick={() => setReady(true)} aria-label="Play">▶</button>}
-        <button className="fs" onClick={fullscreen}>Full screen</button>
+        {!mon && <button className="fs" onClick={fullscreen}>Full screen</button>}
       </div>
-      <section className="now"><h1>{p.title}</h1></section>
+      {!mon && <section className="now"><h1>{p.title}</h1></section>}
     </main>
   );
 }
