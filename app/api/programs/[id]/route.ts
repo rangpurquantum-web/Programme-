@@ -23,7 +23,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
        title = COALESCE($2, title),
        items = COALESCE($3::jsonb, items),
        current_index = COALESCE($4, current_index),
-       is_live = COALESCE($5, is_live)
+       is_live = COALESCE($5, is_live),
+       streams = COALESCE($6::jsonb, streams),
+       start_at = CASE WHEN $7::boolean THEN $8::timestamptz ELSE start_at END
      WHERE id = $1 RETURNING ${COLS}`,
     [
       params.id,
@@ -31,6 +33,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       'items' in b ? JSON.stringify(b.items) : null,
       'currentIndex' in b ? b.currentIndex : null,
       'isLive' in b ? b.isLive : null,
+      'streams' in b ? JSON.stringify(b.streams) : null,
+      'startAt' in b,
+      b.startAt || null,
     ]
   );
   return r.rows[0] ? NextResponse.json(r.rows[0]) : notFound();
