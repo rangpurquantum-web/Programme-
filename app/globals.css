@@ -34,3 +34,11 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid v
 .playbtn { position:absolute; inset:0; margin:auto; width:84px; height:56px; border-radius:12px; background:rgba(16,24,40,.85); color:#fff; font-size:28px; padding:0; z-index:2; }
 .fs { position:absolute; right:8px; top:8px; padding:6px 10px; background:rgba(0,0,0,.6); font-size:.85rem; z-index:2; }
 .player:fullscreen { aspect-ratio:auto; width:100vw; height:100vh; }
+.player { background:#06223a; }
+.slide { background:transparent; }
+.slide .big { font-size:clamp(1.6rem,7vw,3.6rem); font-weight:700; margin:12px 0 0; color:#4ade80; }
+.player.night { background:linear-gradient(180deg,#020617,#022c22); }
+.stars { position:absolute; inset:0; }
+.stars i { position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; animation:tw 3s infinite ease-in-out; }
+@keyframes tw { 0%,100% { opacity:.3 } 50% { opacity:1 } }
+.moon { position:absolute; top:8%; right:6%; width:12%; aspect-ratio:1; border-radius:50%; background:radial-gradient(circle at 30% 30%,#fff,#fef9c3); box-shadow:0 0 25px rgba(255,255,255,.8); }
