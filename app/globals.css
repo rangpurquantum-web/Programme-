@@ -42,3 +42,39 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid v
 .stars i { position:absolute; width:2px; height:2px; border-radius:50%; background:#fff; animation:tw 3s infinite ease-in-out; }
 @keyframes tw { 0%,100% { opacity:.3 } 50% { opacity:1 } }
 .moon { position:absolute; top:8%; right:6%; width:12%; aspect-ratio:1; border-radius:50%; background:radial-gradient(circle at 30% 30%,#fff,#fef9c3); box-shadow:0 0 25px rgba(255,255,255,.8); }
+.op { min-height:100vh; background:#0b1220; color:#e5e7eb; padding:16px 14px 96px; max-width:760px; margin:0 auto; }
+.op h1 { font-size:1.25rem; margin:4px 0 0; }
+.op h2 { font-size:.95rem; margin:20px 0 8px; color:#9ca3af; font-weight:600; }
+.op .sub { color:#9ca3af; margin:4px 0 12px; font-size:.9rem; }
+.op input { background:#111a2e; color:#e5e7eb; border:1px solid #243049; }
+.op button, .op .btn { background:#2563eb; color:#fff; border:0; }
+.op button.ghost { background:#16213a; color:#e5e7eb; border:1px solid #243049; }
+.op .empty { background:#121a2b; border-color:#243049; color:#9ca3af; }
+.opbar { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:14px; }
+.opbadge { padding:4px 10px; border-radius:999px; font-size:.75rem; font-weight:700; background:#243049; }
+.opbadge.on { background:#dc2626; color:#fff; }
+.opmons { display:grid; gap:12px; }
+@media (min-width:640px) { .opmons { grid-template-columns:1fr 1fr; } }
+.oplabel { font-size:.75rem; font-weight:700; letter-spacing:.08em; margin-bottom:4px; }
+.opmon.pv .oplabel { color:#f59e0b; }
+.opmon.pv .player { outline:2px solid #f59e0b; }
+.opmon.lv .oplabel { color:#ef4444; }
+.opmon.lv .player { outline:2px solid #ef4444; }
+.mon .slide h1 { font-size:1rem; margin:0; }
+.mon .slide p { margin:2px 0 0; font-size:.8rem; }
+.mon .slide .big { font-size:1.1rem; margin:4px 0 0; }
+.mon .cap { font-size:.75rem; padding:6px; }
+.opoff { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.6); font-weight:700; letter-spacing:.1em; }
+.op button.oppush { width:100%; margin:12px 0; padding:14px; font-size:1rem; font-weight:700; background:#dc2626; }
+.op button.oppush:disabled { opacity:.4; }
+.oprow { display:flex; align-items:center; gap:6px; padding:8px; background:#121a2b; border:1px solid #243049; border-radius:10px; margin-bottom:8px; }
+.oprow.pv { border-color:#f59e0b; }
+.oprow.lv { box-shadow:inset 4px 0 0 #ef4444; }
+.oprow .t { flex:1; min-width:0; text-align:left; background:none; border:0; color:inherit; padding:4px; }
+.oprow .t strong, .oprow .t small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.oprow .t small { color:#9ca3af; font-weight:400; }
+.op button.ic { width:40px; height:40px; padding:0; display:flex; align-items:center; justify-content:center; flex:none; }
+.op button.ic.on { background:#16a34a; border-color:#16a34a; color:#fff; }
+.opnav { position:fixed; left:0; right:0; bottom:0; display:flex; background:#0f172a; border-top:1px solid #243049; padding-bottom:env(safe-area-inset-bottom,0px); z-index:20; }
+.op .opnav button { flex:1; background:none; color:#9ca3af; border-radius:0; padding:10px 4px; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:.7rem; }
+.op .opnav button.on { color:#60a5fa; }
