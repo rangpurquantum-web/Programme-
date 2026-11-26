@@ -20,12 +20,13 @@ export async function PATCH(req: Request, { params }: Ctx) {
   const pool = await db();
   const r = await pool.query(
     `UPDATE programs SET
-       title = COALESCE($2, title),
+       title = COALESCE($2::text, title),
        items = COALESCE($3::jsonb, items),
-       current_index = COALESCE($4, current_index),
-       is_live = COALESCE($5, is_live),
-       streams = COALESCE($6::jsonb, streams),
-       start_at = CASE WHEN $7::boolean THEN $8::timestamptz ELSE start_at END
+       current_index = COALESCE($4::int, current_index),
+       is_live = COALESCE($5::boolean, is_live),
+       start_at = CASE WHEN $6::boolean THEN $7::timestamptz ELSE start_at END,
+       background = COALESCE($8::text, background),
+       shown_at = CASE WHEN $4::int IS NOT NULL OR $5::boolean IS TRUE THEN now() ELSE shown_at END
      WHERE id = $1 RETURNING ${COLS}`,
     [
       params.id,
@@ -33,9 +34,9 @@ export async function PATCH(req: Request, { params }: Ctx) {
       'items' in b ? JSON.stringify(b.items) : null,
       'currentIndex' in b ? b.currentIndex : null,
       'isLive' in b ? b.isLive : null,
-      'streams' in b ? JSON.stringify(b.streams) : null,
       'startAt' in b,
       b.startAt || null,
+      'background' in b ? b.background : null,
     ]
   );
   return r.rows[0] ? NextResponse.json(r.rows[0]) : notFound();
