@@ -8,14 +8,13 @@ type Star = { t: number; l: number; d: number };
 const bn = (s: string) => s.replace(/\d/g, (d) => '০১২৩৪৫৬৭৮৯'[+d]);
 const two = (n: number) => bn(String(n).padStart(2, '0'));
 
-function embed(url: string, auto: boolean, start: number, mute: boolean) {
+function embed(url: string, start: number, mute: boolean) {
   const m = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/))([\w-]{11})/);
   const u = m ? `https://www.youtube.com/embed/${m[1]}` : url;
-  const q: string[] = [];
-  if (auto) q.push('autoplay=1');
-  if (start > 1) q.push(`start=${start}`);
+  const q = ['autoplay=1', 'controls=0', 'disablekb=1', 'playsinline=1', 'rel=0', 'modestbranding=1'];
   if (mute) q.push('mute=1');
-  return q.length ? u + (u.includes('?') ? '&' : '?') + q.join('&') : u;
+  if (start > 1) q.push(`start=${start}`);
+  return u + (u.includes('?') ? '&' : '?') + q.join('&');
 }
 
 function left(ms: number) {
@@ -27,13 +26,14 @@ function left(ms: number) {
 }
 
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
+const noTouch = { ...fill, pointerEvents: 'none' } as const;
 const isFile = (u: string) => /\.(m3u8|mp4|webm)(\?|$)/i.test(u);
 
 export default function Live({ params }: { params: { id: string } }) {
   const [p, setP] = useState<P | null>(null);
   const [now, setNow] = useState(Date.now());
   const [skew, setSkew] = useState(0);
-  const [ready, setReady] = useState(false);
+  const [sound, setSound] = useState(false);
   const [host, setHost] = useState(false);
   const [mon, setMon] = useState(false);
   const [slide, setSlide] = useState<number | null>(null);
@@ -46,9 +46,7 @@ export default function Live({ params }: { params: { id: string } }) {
   useEffect(() => {
     const q = new URLSearchParams(window.location.search);
     setHost(q.get('host') === '1');
-    const m = q.get('mon') === '1';
-    setMon(m);
-    if (m) setReady(true);
+    setMon(q.get('mon') === '1');
     const sl = q.get('slide');
     setSlide(sl !== null && !isNaN(parseInt(sl)) ? parseInt(sl) : null);
     t0.current = Date.now();
@@ -104,19 +102,20 @@ export default function Live({ params }: { params: { id: string } }) {
     const t = elapsed();
     if (t > 1.5) e.currentTarget.currentTime = t;
   };
-  const yk = `${idx}:${p.shownAt}:${ready}:${slide}`;
+  const yk = `${idx}:${p.shownAt}:${sound}:${slide}`;
   if (yt.current.k !== yk) yt.current = { k: yk, s: Math.floor(elapsed()) };
 
   const wait = p.startAt ? new Date(p.startAt).getTime() - (now + skew) : 0;
   const bg = p.background || '';
   const isCode = bg.startsWith('code:');
   const bgStyle = bg && bg !== 'night' && !isCode ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
+  const hasMedia = !!cur && !cur.countdown && !!(cur.video || cur.audio);
 
   return (
     <main className={`live ${mon ? 'monpage' : ''}`}>
       {!mon && wait > 0 && <div className="count"><span>The program will start in:</span><b>{left(wait)}</b></div>}
       <div className={`player ${bg === 'night' ? 'night' : ''}`} style={bgStyle} ref={box}>
-        {isCode && <iframe srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`} sandbox="allow-scripts" title="Background" style={{ ...fill, pointerEvents: 'none' }} />}
+        {isCode && <iframe srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`} sandbox="allow-scripts" title="Background" style={noTouch} />}
         {bg === 'night' && (
           <>
             <div className="stars">{stars.map((s, i) => <i key={i} style={{ top: `${s.t}%`, left: `${s.l}%`, animationDelay: `${s.d}s` }} />)}</div>
@@ -132,8 +131,8 @@ export default function Live({ params }: { params: { id: string } }) {
         )}
         {cur && !cur.countdown && cur.video && (
           isFile(cur.video)
-            ? <video key={cur.video + ready} src={cur.video} controls={!mon} muted={mon} playsInline autoPlay={ready} onLoadedMetadata={seek} onEnded={advance} style={fill} />
-            : <iframe key={cur.video + ready} src={embed(cur.video, ready, yt.current.s, mon)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowFullScreen style={fill} />
+            ? <video key={cur.video + sound} src={cur.video} muted={mon || !sound} playsInline autoPlay onLoadedMetadata={seek} onEnded={advance} style={noTouch} />
+            : <iframe key={cur.video + sound} src={embed(cur.video, yt.current.s, mon || !sound)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style={noTouch} />
         )}
         {cur && !cur.countdown && !cur.video && cur.image && (
           <>
@@ -144,8 +143,9 @@ export default function Live({ params }: { params: { id: string } }) {
         {cur && !cur.countdown && !cur.video && !cur.image && (
           <div className="slide"><h1>{cur.text || cur.title}</h1>{cur.speaker && <p>{cur.speaker}</p>}</div>
         )}
-        {ready && cur && !cur.video && cur.audio && <audio key={cur.audio} src={cur.audio} muted={mon} autoPlay onLoadedMetadata={seek} onEnded={advance} />}
-        {cur && !ready && <button className="playbtn" onClick={() => setReady(true)} aria-label="Play">▶</button>}
+        {sound && !mon && cur && !cur.video && cur.audio && <audio key={cur.audio} src={cur.audio} autoPlay onLoadedMetadata={seek} onEnded={advance} />}
+        {!mon && p.isLive && <span className="livetag">● LIVE</span>}
+        {!mon && hasMedia && !sound && <button className="soundbtn" onClick={() => setSound(true)}>🔊 Tap for sound</button>}
         {!mon && <button className="fs" onClick={fullscreen}>Full screen</button>}
       </div>
       {!mon && <section className="now"><h1>{p.title}</h1></section>}
