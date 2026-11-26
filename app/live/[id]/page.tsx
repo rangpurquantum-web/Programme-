@@ -1,7 +1,7 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
 
-type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number };
+type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; auto?: boolean };
 type P = { title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean };
 type Star = { t: number; l: number; d: number };
 
@@ -56,7 +56,7 @@ export default function Live({ params }: { params: { id: string } }) {
   }, [params.id]);
 
   function advance() {
-    if (!host || !p) return;
+    if (!host || !p || !p.items[p.currentIndex]?.auto) return;
     const key = `${p.currentIndex}:${p.shownAt}`;
     if (moved.current === key) return;
     moved.current = key;
