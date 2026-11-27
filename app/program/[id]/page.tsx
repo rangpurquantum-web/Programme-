@@ -192,6 +192,34 @@ export default function Control({ params }: { params: { id: string } }) {
   const [skew, setSkew] = useState(0);
   const set = (k: string, v: string) => setF((o) => ({ ...o, [k]: v }));
 
+  // Reads the length of older slides by itself, so every slide knows when it ends.
+  const [tried] = useState(() => new Set<string>());
+  useEffect(() => {
+    if (!p) return;
+    const need = p.items.filter((it) => !it.countdown && (it.video || it.audio) && !it.duration && !tried.has(String(it.video || it.audio)));
+    if (need.length === 0) return;
+    need.forEach((it) => tried.add(String(it.video || it.audio)));
+    (async () => {
+      const found: Record<string, number> = {};
+      for (const it of need) {
+        const vl = it.video || '';
+        const link = String(it.video || it.audio);
+        const isYt = /youtu\.be\/|youtube\.com\//i.test(vl);
+        const d = vl ? (isYt ? await ytDuration(vl) : await probeMedia(vl, 'video')) : await probeMedia(link, 'audio');
+        if (d > 0) found[link] = Math.ceil(d) + (isYt ? 2 : 0);
+      }
+      if (Object.keys(found).length === 0) return;
+      const r = await fetch(`/api/programs/${params.id}`, { cache: 'no-store' });
+      if (!r.ok) return;
+      const fresh = await r.json();
+      const items = fresh.items.map((x: Item) => {
+        const l = String(x.video || x.audio || '');
+        return !x.countdown && !x.duration && found[l] ? { ...x, duration: found[l] } : x;
+      });
+      save({ items });
+    })();
+  });
+
   const load = useCallback(async () => {
     try {
       const r = await fetch(`/api/programs/${params.id}`, { cache: 'no-store' });
