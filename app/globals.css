@@ -83,3 +83,22 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline:3px solid v
 .monpage .player { aspect-ratio:auto; width:100%; height:100vh; }
 .livetag { position:absolute; left:8px; top:8px; z-index:2; background:#dc2626; color:#fff; padding:3px 8px; border-radius:6px; font-size:.75rem; font-weight:700; }
 .soundbtn { position:absolute; left:8px; bottom:8px; z-index:3; padding:8px 12px; background:rgba(0,0,0,.7); color:#fff; font-size:.9rem; }
+.slide.sz-sm h1 { font-size:clamp(1rem,3.5vw,2rem); }
+.slide.sz-lg h1 { font-size:clamp(1.8rem,7vw,4.2rem); }
+.slide.sz-xl h1 { font-size:clamp(2.2rem,9vw,5.5rem); }
+.cap.sz-sm { font-size:clamp(.8rem,2.2vw,1.2rem); }
+.cap.sz-lg { font-size:clamp(1.2rem,4vw,2.4rem); }
+.cap.sz-xl { font-size:clamp(1.5rem,5.5vw,3.2rem); }
+.spk { position:absolute; left:8px; bottom:60px; z-index:2; background:rgba(0,0,0,.65); color:#fff; padding:4px 10px; border-radius:6px; font-size:.9rem; }
+.annc { position:absolute; left:8px; right:8px; top:44px; z-index:4; background:#dc2626; color:#fff; padding:8px 12px; border-radius:8px; text-align:center; font-weight:700; }
+.tick { position:absolute; left:0; right:0; bottom:0; z-index:4; background:rgba(0,0,0,.7); color:#fff; overflow:hidden; white-space:nowrap; padding:6px 0; }
+.tick span { display:inline-block; padding-left:100%; animation:tk 20s linear infinite; }
+@keyframes tk { to { transform:translateX(-100%); } }
+.has-tick .cap { bottom:34px; }
+.has-tick .spk { bottom:94px; }
+.has-tick .soundbtn { bottom:42px; }
+.blackout { position:absolute; inset:0; background:#000; z-index:6; }
+.op select { flex:1; min-width:0; background:#111a2e; color:#e5e7eb; border:1px solid #243049; border-radius:8px; padding:12px; font:inherit; }
+.op input[type=color] { flex:none; width:56px; height:46px; padding:2px; }
+.op button.dark { background:#000; color:#e5e7eb; border:1px solid #6b7280; }
+.op button.dark.on { background:#dc2626; border-color:#dc2626; color:#fff; }
