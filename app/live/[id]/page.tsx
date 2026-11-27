@@ -89,6 +89,18 @@ export default function Live({ params }: { params: { id: string } }) {
   const secs = cur?.countdown && baseMs ? Math.max(0, Math.ceil((baseMs + cur.countdown * 1000 - nowMs) / 1000)) : -1;
 
   useEffect(() => { if (secs === 0) advance(); });
+  const vid = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const h = setInterval(() => {
+      const v = vid.current;
+      if (!v || v.readyState < 2 || !baseMs) return;
+      const t = (Date.now() + (slide !== null ? 0 : skew) - baseMs) / 1000;
+      if (t >= (v.duration || Infinity)) return;
+      if (Math.abs(v.currentTime - t) > 2.5) v.currentTime = t;
+      if (v.paused) v.play().catch(() => {});
+    }, 3000);
+    return () => clearInterval(h);
+  });
 
   function fullscreen() {
     const el = box.current as any;
