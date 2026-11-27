@@ -3,8 +3,9 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { locate } from '@/lib/timeline';
 
-type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; auto?: boolean };
-type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean };
+type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean };
+type Ui = { blackout?: boolean; banner?: { text: string; on: boolean }; ticker?: { text: string; on: boolean } };
+type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean; ui?: Ui };
 type Tab = 'slides' | 'add' | 'look' | 'live';
 type MediaKey = 'image' | 'audio' | 'video';
 
@@ -26,7 +27,7 @@ const toLocal = (s: string | null) => {
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
-const empty = { title: '', text: '', image: '', audio: '', video: '', countdown: '' };
+const empty = { title: '', text: '', image: '', audio: '', video: '', countdown: '', show: '', speaker: '', size: '', font: '', color: '' };
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
 
 function uploadToCloudinary(file: File, onProgress: (n: number) => void): Promise<string> {
@@ -183,6 +184,8 @@ export default function Control({ params }: { params: { id: string } }) {
   const [f, setF] = useState(empty);
   const [bg, setBg] = useState('');
   const [code, setCode] = useState('');
+  const [bn, setBn] = useState('');
+  const [tk, setTk] = useState('');
   const [copied, setCopied] = useState(false);
   const [up, setUp] = useState<{ k: MediaKey; pct: number } | null>(null);
   const [upErr, setUpErr] = useState('');
@@ -262,6 +265,8 @@ export default function Control({ params }: { params: { id: string } }) {
   if (!p) return <main className="op">Loading…</main>;
 
   const bgNow = p.background || '';
+  const ui: Ui = p.ui || {};
+  const last = p.items.length - 1;
   const si = Math.min(sel, Math.max(p.items.length - 1, 0));
   const prev = p.items[si];
   const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/live/${p._id}`;
@@ -271,6 +276,7 @@ export default function Control({ params }: { params: { id: string } }) {
   async function submit() {
     if (!p || up || busy) return;
     const secs = f.countdown ? Math.round(parseFloat(f.countdown) * 60) : 0;
+    const sh = f.show ? Math.round(parseFloat(f.show)) : 0;
     const title = f.title.trim() || f.text.trim().slice(0, 40) || (secs ? 'Break' : '');
     const vl = f.video.trim();
     const al = f.audio.trim();
@@ -285,7 +291,20 @@ export default function Control({ params }: { params: { id: string } }) {
       if (d > 0) duration = Math.ceil(d) + (isYt ? 2 : 0);
       else setNote('Could not read the length of this media, so this slide will not move on by itself.');
     }
-    const base = { title: title || 'Slide', text: f.text.trim(), image: f.image.trim(), audio: al, video: vl, countdown: secs > 0 ? secs : undefined, duration };
+    const base = {
+      title: title || 'Slide',
+      text: f.text.trim(),
+      image: f.image.trim(),
+      audio: al,
+      video: vl,
+      countdown: secs > 0 ? secs : undefined,
+      duration,
+      show: sh > 0 ? sh : undefined,
+      speaker: f.speaker.trim() || undefined,
+      size: f.size || undefined,
+      font: f.font || undefined,
+      color: f.color || undefined,
+    };
     if (editing !== null) save({ items: p.items.map((x, j) => (j === editing ? { ...x, ...base } : x)) });
     else save({ items: [...p.items, base] });
     setF(empty);
@@ -296,7 +315,19 @@ export default function Control({ params }: { params: { id: string } }) {
   function startEdit(i: number) {
     if (!p) return;
     const it = p.items[i];
-    setF({ title: it.title, text: it.text || '', image: it.image || '', audio: it.audio || '', video: it.video || '', countdown: it.countdown ? String(it.countdown / 60) : '' });
+    setF({
+      title: it.title,
+      text: it.text || '',
+      image: it.image || '',
+      audio: it.audio || '',
+      video: it.video || '',
+      countdown: it.countdown ? String(it.countdown / 60) : '',
+      show: it.show ? String(it.show) : '',
+      speaker: it.speaker || '',
+      size: it.size || '',
+      font: it.font || '',
+      color: it.color || '',
+    });
     setEditing(i);
     setTab('add');
   }
@@ -352,18 +383,22 @@ export default function Control({ params }: { params: { id: string } }) {
             <Mon label="LIVE" tone="lv" src={`/live/${p._id}?mon=1`} off={!p.isLive} />
           </div>
           <button className="oppush" disabled={!prev} onClick={() => save({ currentIndex: si })}>Push to live ▸</button>
+          <div className="row">
+            <button className="ghost" style={{ flex: 1 }} disabled={liveIdx >= last} onClick={() => { save({ currentIndex: liveIdx + 1 }); setSel(liveIdx + 1); }}>Push next ▸▸</button>
+            <button className={`dark ${ui.blackout ? 'on' : ''}`} style={{ flex: 1 }} onClick={() => save({ ui: { blackout: !ui.blackout } })}>{ui.blackout ? 'Blackout ON' : 'Blackout'}</button>
+          </div>
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
           {p.items.map((it, i) => (
             <div className={`oprow ${i === si ? 'pv' : ''} ${i === liveIdx && p.isLive ? 'lv' : ''}`} key={i}>
               <button className="t" onClick={() => setSel(i)}>
                 <strong>{i + 1}. {it.title}</strong>
-                <small>{[i === liveIdx && p.isLive && 'LIVE', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown')].filter(Boolean).join(' · ') || ' '}</small>
+                <small>{[i === liveIdx && p.isLive && 'LIVE', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown'), !it.countdown && it.show && `Shows ${it.show} sec`].filter(Boolean).join(' · ') || ' '}</small>
               </button>
               <button className="ghost ic" onClick={() => startEdit(i)} aria-label="Edit slide"><Ic d={D.edit} /></button>
               <button className="ghost ic" onClick={() => remove(i)} aria-label="Delete slide"><Ic d={D.del} /></button>
             </div>
           ))}
-          <p className="sub">Each slide moves to the next one by itself when its audio, video or break ends. After the last slide only the background stays. "Length unknown" slides cannot do this: open Edit and press Save changes to read the length again.</p>
+          <p className="sub">A slide moves to the next one by itself when its audio, video, break or "show for" time ends. A slide with none of these stays until you push another. After the last slide only the background stays. "Length unknown" slides cannot do this: open Edit and press Save changes to read the length again.</p>
         </>
       )}
 
@@ -372,11 +407,32 @@ export default function Control({ params }: { params: { id: string } }) {
           <h2>{editing !== null ? `Edit slide ${editing + 1}` : 'Add a slide'}</h2>
           <div className="row"><input value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="Slide name (for your list)" /></div>
           <div className="row"><input value={f.text} onChange={(e) => set('text', e.target.value)} placeholder="Text on the slide" /></div>
+          <div className="row"><input value={f.speaker} onChange={(e) => set('speaker', e.target.value)} placeholder="Speaker name (optional)" /></div>
           {mediaRow('image', 'Image link (optional)')}
           {mediaRow('audio', 'Audio link (optional)')}
           {mediaRow('video', 'Video link (optional)')}
           {upErr && <p style={{ color: 'var(--live)' }}>{upErr}</p>}
           <div className="row"><input type="number" min="0" step="0.5" value={f.countdown} onChange={(e) => set('countdown', e.target.value)} placeholder="Break countdown in minutes (optional)" /></div>
+          <div className="row"><input type="number" min="0" step="1" value={f.show} onChange={(e) => set('show', e.target.value)} placeholder="Show for how many seconds (optional)" /></div>
+          <div className="row">
+            <select value={f.size} onChange={(e) => set('size', e.target.value)}>
+              <option value="">Text size: Medium</option>
+              <option value="sm">Text size: Small</option>
+              <option value="lg">Text size: Large</option>
+              <option value="xl">Text size: Extra large</option>
+            </select>
+            <select value={f.font} onChange={(e) => set('font', e.target.value)}>
+              <option value="">Font: Default</option>
+              <option value="bn">Font: Bangla sans</option>
+              <option value="bnserif">Font: Bangla serif</option>
+              <option value="ar">Font: Arabic</option>
+            </select>
+          </div>
+          <div className="row" style={{ alignItems: 'center' }}>
+            <span className="sub" style={{ margin: 0 }}>Text colour</span>
+            <input type="color" value={f.color || '#ffffff'} onChange={(e) => set('color', e.target.value)} />
+            {f.color && <button className="ghost" onClick={() => set('color', '')}>Reset</button>}
+          </div>
           <div className="row">
             <button onClick={submit} disabled={!!up || busy}>{up ? 'Uploading…' : busy ? 'Reading length…' : editing !== null ? 'Save changes' : 'Add slide'}</button>
             {editing !== null && <button className="ghost" onClick={() => { setEditing(null); setF(empty); setTab('slides'); }}>Cancel</button>}
@@ -413,6 +469,28 @@ export default function Control({ params }: { params: { id: string } }) {
           <div className="row">
             <button className={p.isLive ? 'ghost' : ''} style={{ flex: 1, padding: 16 }} onClick={() => save({ isLive: !p.isLive })}>{p.isLive ? 'Stop live' : 'Go live'}</button>
           </div>
+          <div className="row">
+            <button className={`dark ${ui.blackout ? 'on' : ''}`} style={{ flex: 1, padding: 14 }} onClick={() => save({ ui: { blackout: !ui.blackout } })}>{ui.blackout ? 'Blackout is ON. Tap to show the screen' : 'Blackout (black screen, no sound)'}</button>
+          </div>
+
+          <h2>Announcement bar</h2>
+          <p className="sub">Appears at once over any slide.</p>
+          <div className="row"><input value={bn} onChange={(e) => setBn(e.target.value)} placeholder={ui.banner?.text || 'Type the announcement'} /></div>
+          <div className="row">
+            <button onClick={() => { const t = bn.trim() || ui.banner?.text || ''; if (t) { save({ ui: { banner: { text: t, on: true } } }); setBn(''); } }}>Show</button>
+            <button className="ghost" onClick={() => save({ ui: { banner: { text: ui.banner?.text || '', on: false } } })}>Hide</button>
+          </div>
+          {ui.banner?.on && <p className="sub">Showing: {ui.banner.text}</p>}
+
+          <h2>Scrolling text</h2>
+          <p className="sub">Moves along the bottom of the screen.</p>
+          <div className="row"><input value={tk} onChange={(e) => setTk(e.target.value)} placeholder={ui.ticker?.text || 'Type the scrolling text'} /></div>
+          <div className="row">
+            <button onClick={() => { const t = tk.trim() || ui.ticker?.text || ''; if (t) { save({ ui: { ticker: { text: t, on: true } } }); setTk(''); } }}>Show</button>
+            <button className="ghost" onClick={() => save({ ui: { ticker: { text: ui.ticker?.text || '', on: false } } })}>Hide</button>
+          </div>
+          {ui.ticker?.on && <p className="sub">Showing: {ui.ticker.text}</p>}
+
           <h2>Main screen</h2>
           <p className="sub">Open this on the device that plays the program. It plays the break alert sound. Tap ▶ once there.</p>
           <div className="row"><Link className="btn" href={`/live/${p._id}?host=1`} target="_blank">Open main screen</Link></div>
