@@ -1,3 +1,4 @@
+
 'use client';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { locate } from '@/lib/timeline';
@@ -61,6 +62,7 @@ export default function Live({ params }: { params: { id: string } }) {
     t0.current = Date.now();
     setStars(Array.from({ length: 90 }, () => ({ t: Math.random() * 100, l: Math.random() * 100, d: Math.random() * 3 })));
     let on = true;
+
     async function tick() {
       try {
         const r = await fetch(`/api/programs/${params.id}`, { cache: 'no-store' });
@@ -71,31 +73,49 @@ export default function Live({ params }: { params: { id: string } }) {
         }
       } catch {}
     }
+
     tick();
     const h = setInterval(tick, 2000);
     const c = setInterval(() => setNow(Date.now()), 1000);
-    return () => { on = false; clearInterval(h); clearInterval(c); };
+
+    return () => {
+      on = false;
+      clearInterval(h);
+      clearInterval(c);
+    };
   }, [params.id]);
 
-  // Which slide is on screen now. Slides move on by themselves when their audio, video, break or set time ends.
+  // Which slide is on screen now.
+  // Slides move on by themselves when their audio, video, break or set time ends.
   const items = p ? p.items : [];
   const baseMs = slide !== null ? t0.current : p?.shownAt ? new Date(p.shownAt).getTime() : 0;
   const nowMs = slide !== null ? now : now + skew;
-  const eff = locate(items, slide !== null ? slide : p ? p.currentIndex : 0, baseMs ? (nowMs - baseMs) / 1000 : 0, slide === null);
+  const eff = locate(
+    items,
+    slide !== null ? slide : p ? p.currentIndex : 0,
+    baseMs ? (nowMs - baseMs) / 1000 : 0,
+    slide === null
+  );
+
   const idx = eff.index;
   const showing = !!p && (slide !== null || p.isLive);
   const dark = !!p?.ui?.blackout && slide === null;
   const cur = showing ? items[idx] : undefined;
-  const c = cur && !eff.over && !dark ? cur : undefined; // after the last slide ends, only the background stays
+  const c = cur && !eff.over && !dark ? cur : undefined;
   const secs = c?.countdown ? Math.max(0, Math.ceil(c.countdown - eff.t)) : -1;
+
   const clock = () => (Date.now() + (slide !== null ? 0 : skew) - baseMs) / 1000 - eff.offset;
 
   useEffect(() => {
     if (!p) return;
+
     const pi = prevIdx.current;
     prevIdx.current = idx;
+
     if (host && slide === null && pi !== null && idx > pi && p.items[pi]?.countdown) {
-      try { new Audio('/alert.mp3').play().catch(() => {}); } catch {}
+      try {
+        new Audio('/alert.mp3').play().catch(() => {});
+      } catch {}
     }
   });
 
@@ -103,11 +123,14 @@ export default function Live({ params }: { params: { id: string } }) {
     const h = setInterval(() => {
       const v = vid.current;
       if (!v || v.readyState < 2) return;
+
       const t = clock();
       if (!(t >= 0) || t >= (v.duration || Infinity)) return;
+
       if (Math.abs(v.currentTime - t) > 2.5) v.currentTime = t;
       if (v.paused) v.play().catch(() => {});
     }, 3000);
+
     return () => clearInterval(h);
   });
 
@@ -123,13 +146,20 @@ export default function Live({ params }: { params: { id: string } }) {
     const t = clock();
     if (t > 1.5) e.currentTarget.currentTime = t;
   };
+
   const yk = `${idx}:${p.shownAt}:${sound}:${slide}`;
-  if (yt.current.k !== yk) yt.current = { k: yk, s: Math.max(0, Math.floor(clock())) };
+  if (yt.current.k !== yk) {
+    yt.current = { k: yk, s: Math.max(0, Math.floor(clock())) };
+  }
 
   const wait = p.startAt ? new Date(p.startAt).getTime() - (now + skew) : 0;
   const bg = p.background || '';
   const isCode = bg.startsWith('code:');
-  const bgStyle = bg && bg !== 'night' && !isCode ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
+
+  const bgStyle = bg && bg !== 'night' && !isCode
+    ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+    : undefined;
+
   const hasMedia = !!c && !c.countdown && !!(c.video || c.audio);
 
   const ui: Ui = p.ui || {};
@@ -141,42 +171,164 @@ export default function Live({ params }: { params: { id: string } }) {
 
   return (
     <main className={`live ${mon ? 'monpage' : ''}`}>
-      {!mon && wait > 0 && <div className="count"><span>The program will start in:</span><b>{left(wait)}</b></div>}
-      <div className={`player ${bg === 'night' ? 'night' : ''} ${tickOn ? 'has-tick' : ''}`} style={bgStyle} ref={box}>
-        {isCode && <iframe srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`} sandbox="allow-scripts" title="Background" style={noTouch} />}
+
+      {!mon && wait > 0 && (
+        <div className="count">
+          <span>The program will start in:</span>
+          <b>{left(wait)}</b>
+        </div>
+      )}
+
+      <div
+        className={`player ${bg === 'night' ? 'night' : ''} ${tickOn ? 'has-tick' : ''}`}
+        style={bgStyle}
+        ref={box}
+      >
+
+        {isCode && (
+          <iframe
+            srcDoc={`<style>html,body{margin:0;height:100%;overflow:hidden}</style>${bg.slice(5)}`}
+            sandbox="allow-scripts"
+            title="Background"
+            style={noTouch}
+          />
+        )}
+
         {bg === 'night' && (
           <>
-            <div className="stars">{stars.map((s, i) => <i key={i} style={{ top: `${s.t}%`, left: `${s.l}%`, animationDelay: `${s.d}s` }} />)}</div>
+            <div className="stars">
+              {stars.map((s, i) => (
+                <i
+                  key={i}
+                  style={{
+                    top: `${s.t}%`,
+                    left: `${s.l}%`,
+                    animationDelay: `${s.d}s`
+                  }}
+                />
+              ))}
+            </div>
             <div className="moon" />
           </>
         )}
-        {!cur && <div className="slide"><h1>{p.title}</h1><p>Starting soon</p></div>}
+
+        {/* Starting soon text removed */}
+        {!cur && (
+          <div className="slide">
+            <h1>{p.title}</h1>
+          </div>
+        )}
+
         {c && c.countdown && (
           <div className={`slide sz-${sz}`}>
             <h1 style={ts}>{c.text || c.title}</h1>
-            <p className="big">{two(Math.floor(secs / 60))} মিনিট {two(secs % 60)} সেকেন্ড</p>
+            <p className="big">
+              {two(Math.floor(secs / 60))} মিনিট {two(secs % 60)} সেকেন্ড
+            </p>
           </div>
         )}
+
         {c && !c.countdown && c.video && (
           isFile(c.video)
-            ? <video ref={vid} preload="auto" disablePictureInPicture controlsList="nodownload noremoteplayback" onContextMenu={(e) => e.preventDefault()} key={c.video + sound + idx} src={c.video} muted={mon || !sound} playsInline autoPlay onLoadedMetadata={seek} style={noTouch} />
-            : <iframe key={c.video + sound + idx} src={embed(c.video, yt.current.s, mon || !sound)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style={noTouch} />
+            ? (
+              <video
+                ref={vid}
+                preload="auto"
+                disablePictureInPicture
+                controlsList="nodownload noremoteplayback"
+                onContextMenu={(e) => e.preventDefault()}
+                key={c.video + sound + idx}
+                src={c.video}
+                muted={mon || !sound}
+                playsInline
+                autoPlay
+                onLoadedMetadata={seek}
+                style={noTouch}
+              />
+            )
+            : (
+              <iframe
+                key={c.video + sound + idx}
+                src={embed(c.video, yt.current.s, mon || !sound)}
+                title="Video"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                style={noTouch}
+              />
+            )
         )}
-        {c && !c.countdown && !c.video && c.image && <img src={c.image} alt="" style={{ ...fill, objectFit: 'contain' }} />}
-        {c && !c.countdown && (c.video || c.image) && c.text && <div className={`cap sz-${sz}`} style={ts}>{c.text}</div>}
-        {c && !c.countdown && (c.video || c.image) && c.speaker && <div className="spk">{c.speaker}</div>}
+
+        {c && !c.countdown && !c.video && c.image && (
+          <img
+            src={c.image}
+            alt=""
+            style={{ ...fill, objectFit: 'contain' }}
+          />
+        )}
+
+        {c && !c.countdown && (c.video || c.image) && c.text && (
+          <div className={`cap sz-${sz}`} style={ts}>
+            {c.text}
+          </div>
+        )}
+
+        {c && !c.countdown && (c.video || c.image) && c.speaker && (
+          <div className="spk">{c.speaker}</div>
+        )}
+
         {c && !c.countdown && !c.video && !c.image && (
-          <div className={`slide sz-${sz}`}><h1 style={ts}>{c.text || c.title}</h1>{c.speaker && <p>{c.speaker}</p>}</div>
+          <div className={`slide sz-${sz}`}>
+            <h1 style={ts}>{c.text || c.title}</h1>
+            {c.speaker && <p>{c.speaker}</p>}
+          </div>
         )}
-        {sound && !mon && c && !c.countdown && !c.video && c.audio && <audio key={c.audio + idx} src={c.audio} autoPlay onLoadedMetadata={seek} />}
-        {banner && banner.on && banner.text && <div className="annc">{banner.text}</div>}
-        {tickOn && ticker && <div className="tick"><span style={{ animationDuration: `${Math.max(12, ticker.text.length * 0.3)}s` }}>{ticker.text}</span></div>}
+
+        {sound && !mon && c && !c.countdown && !c.video && c.audio && (
+          <audio
+            key={c.audio + idx}
+            src={c.audio}
+            autoPlay
+            onLoadedMetadata={seek}
+          />
+        )}
+
+        {banner && banner.on && banner.text && (
+          <div className="annc">{banner.text}</div>
+        )}
+
+        {tickOn && ticker && (
+          <div className="tick">
+            <span style={{ animationDuration: `${Math.max(12, ticker.text.length * 0.3)}s` }}>
+              {ticker.text}
+            </span>
+          </div>
+        )}
+
         {dark && <div className="blackout" />}
-        {!mon && p.isLive && <span className="livetag">● LIVE</span>}
-        {!mon && hasMedia && !sound && <button className="soundbtn" onClick={() => setSound(true)}>🔊 Tap for sound</button>}
-        {!mon && <button className="fs" onClick={fullscreen}>Full screen</button>}
+
+        {!mon && p.isLive && (
+          <span className="livetag">● LIVE</span>
+        )}
+
+        {!mon && hasMedia && !sound && (
+          <button className="soundbtn" onClick={() => setSound(true)}>
+            🔊 Tap for sound
+          </button>
+        )}
+
+        {!mon && (
+          <button className="fs" onClick={fullscreen}>
+            Full screen
+          </button>
+        )}
+
       </div>
-      {!mon && <section className="now"><h1>{p.title}</h1></section>}
+
+      {!mon && (
+        <section className="now">
+          <h1>{p.title}</h1>
+        </section>
+      )}
+
     </main>
   );
 }
