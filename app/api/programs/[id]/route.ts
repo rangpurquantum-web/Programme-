@@ -26,6 +26,7 @@ export async function PATCH(req: Request, { params }: Ctx) {
        is_live = COALESCE($5::boolean, is_live),
        start_at = CASE WHEN $6::boolean THEN $7::timestamptz ELSE start_at END,
        background = COALESCE($8::text, background),
+       ui = CASE WHEN $9::boolean THEN COALESCE(ui, '{}'::jsonb) || $10::jsonb ELSE ui END,
        shown_at = CASE WHEN $4::int IS NOT NULL OR $5::boolean IS TRUE THEN now() ELSE shown_at END
      WHERE id = $1 RETURNING ${COLS}`,
     [
@@ -37,6 +38,8 @@ export async function PATCH(req: Request, { params }: Ctx) {
       'startAt' in b,
       b.startAt || null,
       'background' in b ? b.background : null,
+      'ui' in b,
+      JSON.stringify(b.ui ?? {}),
     ]
   );
   return r.rows[0] ? NextResponse.json(r.rows[0]) : notFound();
