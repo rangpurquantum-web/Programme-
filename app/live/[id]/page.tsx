@@ -66,7 +66,7 @@ function embed(url: string, start: number, mute: boolean) {
     'disablekb=1',
     'playsinline=1',
     'rel=0',
-    'iv_load_policy=3'
+    'iv_load_policy=3', 'cc_load_policy=0', 'enablejsapi=1', 'fs=0'
   ];
 
   if (mute) q.push('mute=1');
@@ -104,6 +104,13 @@ const noTouch = {
 const isFile = (u: string) =>
   !/(?:youtu\.be\/|youtube\.com\/)/i.test(u);
 
+
+// Hides YouTube captions (auto-generated or not) on the embedded player.
+const killCaptions = (e: SyntheticEvent<HTMLIFrameElement>) => {
+  const w = e.currentTarget.contentWindow;
+  const send = () => ['captions', 'cc'].forEach((m) => w?.postMessage(JSON.stringify({ event: 'command', func: 'unloadModule', args: [m] }), '*'));
+  [0, 800, 2500, 5000].forEach((ms) => setTimeout(send, ms));
+};
 
 export default function Live({ params }: { params: { id: string } }) {
 
@@ -604,7 +611,7 @@ export default function Live({ params }: { params: { id: string } }) {
                   mon || !sound
                 )}
                 title="Video"
-                allow="autoplay; fullscreen; picture-in-picture; encrypted-media"
+                allow="autoplay; fullscreen; picture-in-picture; encrypted-media" onLoad={killCaptions}
                 style={noTouch}
               />
 

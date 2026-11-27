@@ -31,25 +31,20 @@ export default function GlobalLivePlayer() {
     setLiveId(null);
   };
 
+  const btn = { background: "none", border: 0, color: "#fff", fontSize: 12, padding: 0, cursor: "pointer" } as const;
+
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-[300px] overflow-hidden rounded-xl border border-white/20 bg-black shadow-2xl sm:w-[380px]">
-      <div className="flex items-center justify-between bg-neutral-900 px-3 py-1.5 text-xs text-white">
-        <span className="flex items-center gap-1.5">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
-          LIVE
-        </span>
-        <span className="flex gap-3">
-          <button onClick={() => router.push(`/live/${liveId}`)} aria-label="বড় করুন">
-            ⤢ বড় করুন
-          </button>
-          <button onClick={close} aria-label="বন্ধ করুন">
-            ✕
-          </button>
+    <div style={{ position: "fixed", right: 12, bottom: 12, zIndex: 50, width: "min(340px, 80vw)", overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,.25)", background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#171717", color: "#fff", fontSize: 12, padding: "6px 10px" }}>
+        <span>● LIVE</span>
+        <span style={{ display: "flex", gap: 12 }}>
+          <button style={btn} onClick={() => router.push(`/live/${liveId}`)} aria-label="বড় করুন">⤢ বড় করুন</button>
+          <button style={btn} onClick={close} aria-label="বন্ধ করুন">✕</button>
         </span>
       </div>
       <iframe
         src={`/live/${liveId}?embed=1`}
-        className="aspect-video w-full border-0"
+        style={{ display: "block", width: "100%", aspectRatio: "16 / 9", border: 0 }}
         allow="autoplay; fullscreen"
         title="Live"
       />
