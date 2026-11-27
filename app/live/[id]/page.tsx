@@ -130,7 +130,7 @@ export default function Live({ params }: { params: { id: string } }) {
         )}
         {cur && !cur.countdown && cur.video && (
           isFile(cur.video)
-            ? <video key={cur.video + sound} src={cur.video} muted={mon || !sound} playsInline autoPlay onLoadedMetadata={seek} onEnded={advance} style={noTouch} />
+            ? <video ref={vid} preload="auto" disablePictureInPicture controlsList="nodownload noremoteplayback" onContextMenu={(e) => e.preventDefault()} key={cur.video + sound} src={cur.video} muted={mon || !sound} playsInline autoPlay onLoadedMetadata={seek} onEnded={advance} style={noTouch} />
             : <iframe key={cur.video + sound} src={embed(cur.video, yt.current.s, mon || !sound)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style={noTouch} />
         )}
         {cur && !cur.countdown && !cur.video && cur.image && (
