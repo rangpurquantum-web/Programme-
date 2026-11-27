@@ -1,9 +1,10 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { locate } from '@/lib/timeline';
 
-type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; auto?: boolean };
-type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; currentIndex: number; isLive: boolean };
+type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; auto?: boolean };
+type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean };
 type Tab = 'slides' | 'add' | 'look' | 'live';
 type MediaKey = 'image' | 'audio' | 'video';
 
@@ -14,7 +15,6 @@ const D = {
   live: 'M12 12h.01M16.2 7.8a6 6 0 010 8.4M7.8 16.2a6 6 0 010-8.4M19 5a10 10 0 010 14M5 19A10 10 0 015 5',
   edit: 'M4 20h4L19 9l-4-4L4 16v4z',
   del: 'M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
-  auto: 'M5 5l9 7-9 7V5zM18 5v14',
 };
 const Ic = ({ d }: { d: string }) => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>
@@ -25,33 +25,141 @@ const toLocal = (s: string | null) => {
   const d = new Date(s);
   return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 };
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 const empty = { title: '', text: '', image: '', audio: '', video: '', countdown: '' };
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
 
 function uploadToCloudinary(file: File, onProgress: (n: number) => void): Promise<string> {
   const cloud = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
   const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
-  return new Promise((resolve, reject) => {
-    if (!cloud || !preset) return reject(new Error('Cloudinary environment variables are missing'));
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('upload_preset', preset);
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud}/auto/upload`);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      try {
-        const res = JSON.parse(xhr.responseText);
-        if (xhr.status >= 200 && xhr.status < 300 && res.secure_url) resolve(res.secure_url);
-        else reject(new Error(res.error?.message || 'Upload failed'));
-      } catch {
-        reject(new Error('Upload failed'));
+  if (!cloud || !preset) return Promise.reject(new Error('Cloudinary environment variables are missing'));
+  const url = `https://api.cloudinary.com/v1_1/${cloud}/auto/upload`;
+  const CHUNK = 6 * 1024 * 1024;
+  const total = file.size;
+  const chunked = total > CHUNK;
+  const uid = Date.now() + '-' + Math.random().toString(36).slice(2);
+
+  const send = (start: number): Promise<{ secure_url?: string }> =>
+    new Promise((resolve, reject) => {
+      const end = chunked ? Math.min(start + CHUNK, total) : total;
+      const fd = new FormData();
+      fd.append('file', chunked ? file.slice(start, end) : file, file.name);
+      fd.append('upload_preset', preset);
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', url);
+      if (chunked) {
+        xhr.setRequestHeader('X-Unique-Upload-Id', uid);
+        xhr.setRequestHeader('Content-Range', `bytes ${start}-${end - 1}/${total}`);
       }
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.min(99, Math.round(((start + e.loaded) / total) * 100)));
+      };
+      xhr.onload = () => {
+        let res: any = null;
+        try { res = JSON.parse(xhr.responseText); } catch {}
+        if (xhr.status >= 200 && xhr.status < 300 && res) resolve(res);
+        else reject(new Error(res?.error?.message || 'Upload failed'));
+      };
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(fd);
+    });
+
+  const sendRetry = async (start: number) => {
+    let last: unknown;
+    for (let i = 0; i < 3; i++) {
+      try { return await send(start); } catch (e) { last = e; await new Promise((r) => setTimeout(r, 1500)); }
+    }
+    throw last;
+  };
+
+  return (async () => {
+    let res: { secure_url?: string } = {};
+    for (let start = 0; start < total; start += chunked ? CHUNK : total) res = await sendRetry(start);
+    if (!res.secure_url) throw new Error('Upload did not finish');
+    onProgress(100);
+    return res.secure_url;
+  })();
+}
+
+// Length (seconds) of an uploaded audio/video file. 0 = could not read it.
+function probeMedia(url: string, kind: 'video' | 'audio'): Promise<number> {
+  return new Promise((resolve) => {
+    const el = document.createElement(kind);
+    let done = false;
+    let tm: ReturnType<typeof setTimeout> | undefined;
+    const end = (n: number) => {
+      if (done) return;
+      done = true;
+      if (tm) clearTimeout(tm);
+      el.removeAttribute('src');
+      el.load();
+      resolve(n);
     };
-    xhr.onerror = () => reject(new Error('Network error'));
-    xhr.send(fd);
+    tm = setTimeout(() => end(0), 12000);
+    el.preload = 'metadata';
+    el.onloadedmetadata = () => end(isFinite(el.duration) ? el.duration : 0);
+    el.onerror = () => end(0);
+    el.src = url;
+  });
+}
+
+// Length (seconds) of a YouTube video, read with a hidden player. 0 = could not read it.
+function ytDuration(link: string): Promise<number> {
+  const m = link.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|live\/|embed\/|shorts\/))([\w-]{11})/);
+  if (!m) return Promise.resolve(0);
+  const id = m[1];
+  return new Promise((resolve) => {
+    const w = window as any;
+    let player: any;
+    let box: HTMLDivElement | null = null;
+    let poll: any;
+    let timer: any;
+    let done = false;
+    const finish = (n: number) => {
+      if (done) return;
+      done = true;
+      clearInterval(poll);
+      clearTimeout(timer);
+      try { player?.destroy(); } catch {}
+      box?.remove();
+      resolve(n);
+    };
+    timer = setTimeout(() => finish(0), 12000);
+    const make = () => {
+      box = document.createElement('div');
+      box.style.cssText = 'position:fixed;left:-9999px;top:0;width:200px;height:120px;opacity:0';
+      const inner = document.createElement('div');
+      box.appendChild(inner);
+      document.body.appendChild(box);
+      player = new w.YT.Player(inner, {
+        videoId: id,
+        playerVars: { controls: 0, playsinline: 1 },
+        events: {
+          onReady: () => {
+            try { player.mute(); } catch {}
+            let n = 0;
+            poll = setInterval(() => {
+              n++;
+              const d = Number(player.getDuration?.());
+              if (d > 0) finish(d);
+              else if (n === 6) { try { player.playVideo(); } catch {} }
+            }, 300);
+          },
+          onError: () => finish(0),
+        },
+      });
+    };
+    if (w.YT && w.YT.Player) make();
+    else {
+      const prev = w.onYouTubeIframeAPIReady;
+      w.onYouTubeIframeAPIReady = () => { if (prev) prev(); make(); };
+      if (!document.getElementById('yt-api')) {
+        const s = document.createElement('script');
+        s.id = 'yt-api';
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+      }
+    }
   });
 }
 
@@ -78,12 +186,20 @@ export default function Control({ params }: { params: { id: string } }) {
   const [copied, setCopied] = useState(false);
   const [up, setUp] = useState<{ k: MediaKey; pct: number } | null>(null);
   const [upErr, setUpErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [now, setNow] = useState(Date.now());
+  const [skew, setSkew] = useState(0);
   const set = (k: string, v: string) => setF((o) => ({ ...o, [k]: v }));
 
   const load = useCallback(async () => {
     try {
       const r = await fetch(`/api/programs/${params.id}`, { cache: 'no-store' });
-      if (r.ok) setP(await r.json());
+      if (r.ok) {
+        const d = await r.json();
+        setP(d);
+        setSkew(new Date(d.serverNow).getTime() - Date.now());
+      }
     } catch {}
   }, [params.id]);
   useEffect(() => {
@@ -91,6 +207,10 @@ export default function Control({ params }: { params: { id: string } }) {
     const h = setInterval(load, 2000);
     return () => clearInterval(h);
   }, [load]);
+  useEffect(() => {
+    const c = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(c);
+  }, []);
 
   async function save(patch: Partial<P>) {
     const r = await fetch(`/api/programs/${params.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(patch) });
@@ -117,13 +237,27 @@ export default function Control({ params }: { params: { id: string } }) {
   const si = Math.min(sel, Math.max(p.items.length - 1, 0));
   const prev = p.items[si];
   const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/live/${p._id}`;
+  const eff = p.isLive && p.shownAt ? locate(p.items, p.currentIndex, (now + skew - new Date(p.shownAt).getTime()) / 1000, true) : null;
+  const liveIdx = eff ? eff.index : p.currentIndex;
 
-  function submit() {
-    if (!p || up) return;
+  async function submit() {
+    if (!p || up || busy) return;
     const secs = f.countdown ? Math.round(parseFloat(f.countdown) * 60) : 0;
     const title = f.title.trim() || f.text.trim().slice(0, 40) || (secs ? 'Break' : '');
-    if (!title && !f.image.trim() && !f.video.trim()) return;
-    const base = { title: title || 'Slide', text: f.text.trim(), image: f.image.trim(), audio: f.audio.trim(), video: f.video.trim(), countdown: secs > 0 ? secs : undefined };
+    const vl = f.video.trim();
+    const al = f.audio.trim();
+    if (!title && !f.image.trim() && !vl) return;
+    let duration: number | undefined;
+    setNote('');
+    if (!secs && (vl || al)) {
+      setBusy(true);
+      const isYt = /youtu\.be\/|youtube\.com\//i.test(vl);
+      const d = vl ? (isYt ? await ytDuration(vl) : await probeMedia(vl, 'video')) : await probeMedia(al, 'audio');
+      setBusy(false);
+      if (d > 0) duration = Math.ceil(d) + (isYt ? 2 : 0);
+      else setNote('Could not read the length of this media, so this slide will not move on by itself.');
+    }
+    const base = { title: title || 'Slide', text: f.text.trim(), image: f.image.trim(), audio: al, video: vl, countdown: secs > 0 ? secs : undefined, duration };
     if (editing !== null) save({ items: p.items.map((x, j) => (j === editing ? { ...x, ...base } : x)) });
     else save({ items: [...p.items, base] });
     setF(empty);
@@ -144,8 +278,6 @@ export default function Control({ params }: { params: { id: string } }) {
     const ci = Math.max(0, Math.min(p.currentIndex - (i < p.currentIndex ? 1 : 0), p.items.length - 2));
     save({ items: p.items.filter((_, j) => j !== i), currentIndex: ci });
   }
-
-  const toggleAuto = (i: number) => save({ items: p.items.map((x, j) => (j === i ? { ...x, auto: !x.auto } : x)) });
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'slides', label: 'Slides' },
@@ -183,6 +315,7 @@ export default function Control({ params }: { params: { id: string } }) {
         </div>
         <span className={`opbadge ${p.isLive ? 'on' : ''}`}>{p.isLive ? 'ON AIR' : 'OFF AIR'}</span>
       </div>
+      {note && <p className="sub" style={{ color: 'var(--live)' }}>{note}</p>}
 
       {tab === 'slides' && (
         <>
@@ -193,17 +326,16 @@ export default function Control({ params }: { params: { id: string } }) {
           <button className="oppush" disabled={!prev} onClick={() => save({ currentIndex: si })}>Push to live ▸</button>
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
           {p.items.map((it, i) => (
-            <div className={`oprow ${i === si ? 'pv' : ''} ${i === p.currentIndex && p.isLive ? 'lv' : ''}`} key={i}>
+            <div className={`oprow ${i === si ? 'pv' : ''} ${i === liveIdx && p.isLive ? 'lv' : ''}`} key={i}>
               <button className="t" onClick={() => setSel(i)}>
                 <strong>{i + 1}. {it.title}</strong>
-                <small>{[i === p.currentIndex && p.isLive && 'LIVE', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`].filter(Boolean).join(' · ') || ' '}</small>
+                <small>{[i === liveIdx && p.isLive && 'LIVE', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown')].filter(Boolean).join(' · ') || ' '}</small>
               </button>
-              <button className={`ghost ic ${it.auto ? 'on' : ''}`} onClick={() => toggleAuto(i)} aria-pressed={!!it.auto} aria-label="Go to next slide automatically when this one ends" title="Auto next"><Ic d={D.auto} /></button>
               <button className="ghost ic" onClick={() => startEdit(i)} aria-label="Edit slide"><Ic d={D.edit} /></button>
               <button className="ghost ic" onClick={() => remove(i)} aria-label="Delete slide"><Ic d={D.del} /></button>
             </div>
           ))}
-          <p className="sub">Green icon = moves to the next slide by itself when this slide ends (audio or video ends, or the break countdown reaches zero).</p>
+          <p className="sub">Each slide moves to the next one by itself when its audio, video or break ends. After the last slide only the background stays. "Length unknown" slides cannot do this: open Edit and press Save changes to read the length again.</p>
         </>
       )}
 
@@ -218,7 +350,7 @@ export default function Control({ params }: { params: { id: string } }) {
           {upErr && <p style={{ color: 'var(--live)' }}>{upErr}</p>}
           <div className="row"><input type="number" min="0" step="0.5" value={f.countdown} onChange={(e) => set('countdown', e.target.value)} placeholder="Break countdown in minutes (optional)" /></div>
           <div className="row">
-            <button onClick={submit} disabled={!!up}>{up ? 'Uploading…' : editing !== null ? 'Save changes' : 'Add slide'}</button>
+            <button onClick={submit} disabled={!!up || busy}>{up ? 'Uploading…' : busy ? 'Reading length…' : editing !== null ? 'Save changes' : 'Add slide'}</button>
             {editing !== null && <button className="ghost" onClick={() => { setEditing(null); setF(empty); setTab('slides'); }}>Cancel</button>}
           </div>
         </>
@@ -254,7 +386,7 @@ export default function Control({ params }: { params: { id: string } }) {
             <button className={p.isLive ? 'ghost' : ''} style={{ flex: 1, padding: 16 }} onClick={() => save({ isLive: !p.isLive })}>{p.isLive ? 'Stop live' : 'Go live'}</button>
           </div>
           <h2>Main screen</h2>
-          <p className="sub">Open this on the device that plays the program. It plays audio and moves to the next slide by itself. Tap ▶ once there.</p>
+          <p className="sub">Open this on the device that plays the program. It plays the break alert sound. Tap ▶ once there.</p>
           <div className="row"><Link className="btn" href={`/live/${p._id}?host=1`} target="_blank">Open main screen</Link></div>
           <h2>Viewer link</h2>
           <p className="sub" style={{ wordBreak: 'break-all' }}>{url}</p>

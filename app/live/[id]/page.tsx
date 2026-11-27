@@ -1,7 +1,8 @@
 'use client';
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
+import { locate } from '@/lib/timeline';
 
-type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; auto?: boolean };
+type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; auto?: boolean };
 type P = { title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean };
 type Star = { t: number; l: number; d: number };
 
@@ -27,7 +28,6 @@ function left(ms: number) {
 
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
 const noTouch = { ...fill, pointerEvents: 'none' } as const;
-
 const isFile = (u: string) => !/(?:youtu\.be\/|youtube\.com\/)/i.test(u);
 
 export default function Live({ params }: { params: { id: string } }) {
@@ -40,7 +40,8 @@ export default function Live({ params }: { params: { id: string } }) {
   const [slide, setSlide] = useState<number | null>(null);
   const [stars, setStars] = useState<Star[]>([]);
   const box = useRef<HTMLDivElement>(null);
-  const moved = useRef('');
+  const vid = useRef<HTMLVideoElement>(null);
+  const prevIdx = useRef<number | null>(null);
   const t0 = useRef(Date.now());
   const yt = useRef({ k: '', s: 0 });
 
@@ -69,33 +70,33 @@ export default function Live({ params }: { params: { id: string } }) {
     return () => { on = false; clearInterval(h); clearInterval(c); };
   }, [params.id]);
 
-  function advance() {
-    if (!host || !p || !p.items[p.currentIndex]?.auto) return;
-    const key = `${p.currentIndex}:${p.shownAt}`;
-    if (moved.current === key) return;
-    moved.current = key;
-    if (p.items[p.currentIndex]?.countdown) {
-      try { new Audio('/alert.mp3').play().catch(() => {}); } catch {}
-    }
-    if (p.currentIndex < p.items.length - 1) {
-      fetch(`/api/programs/${params.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ currentIndex: p.currentIndex + 1 }) });
-    }
-  }
-
-  const idx = slide !== null ? slide : p ? p.currentIndex : 0;
-  const cur = p && (slide !== null || p.isLive) ? p.items[idx] : undefined;
+  // Which slide is on screen now. Slides move on by themselves when their audio, video or break ends.
+  const items = p ? p.items : [];
   const baseMs = slide !== null ? t0.current : p?.shownAt ? new Date(p.shownAt).getTime() : 0;
   const nowMs = slide !== null ? now : now + skew;
-  const secs = cur?.countdown && baseMs ? Math.max(0, Math.ceil((baseMs + cur.countdown * 1000 - nowMs) / 1000)) : -1;
+  const eff = locate(items, slide !== null ? slide : p ? p.currentIndex : 0, baseMs ? (nowMs - baseMs) / 1000 : 0, slide === null);
+  const idx = eff.index;
+  const showing = !!p && (slide !== null || p.isLive);
+  const cur = showing ? items[idx] : undefined;
+  const c = cur && !eff.over ? cur : undefined; // after the last slide ends, only the background stays
+  const secs = c?.countdown ? Math.max(0, Math.ceil(c.countdown - eff.t)) : -1;
+  const clock = () => (Date.now() + (slide !== null ? 0 : skew) - baseMs) / 1000 - eff.offset;
 
-  useEffect(() => { if (secs === 0) advance(); });
-  const vid = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    if (!p) return;
+    const pi = prevIdx.current;
+    prevIdx.current = idx;
+    if (host && slide === null && pi !== null && idx > pi && p.items[pi]?.countdown) {
+      try { new Audio('/alert.mp3').play().catch(() => {}); } catch {}
+    }
+  });
+
   useEffect(() => {
     const h = setInterval(() => {
       const v = vid.current;
-      if (!v || v.readyState < 2 || !baseMs) return;
-      const t = (Date.now() + (slide !== null ? 0 : skew) - baseMs) / 1000;
-      if (t >= (v.duration || Infinity)) return;
+      if (!v || v.readyState < 2) return;
+      const t = clock();
+      if (!(t >= 0) || t >= (v.duration || Infinity)) return;
       if (Math.abs(v.currentTime - t) > 2.5) v.currentTime = t;
       if (v.paused) v.play().catch(() => {});
     }, 3000);
@@ -110,19 +111,18 @@ export default function Live({ params }: { params: { id: string } }) {
 
   if (!p) return <main className="live"><p className="now">Loading…</p></main>;
 
-  const elapsed = () => (baseMs ? (Date.now() + (slide !== null ? 0 : skew) - baseMs) / 1000 : 0);
   const seek = (e: SyntheticEvent<HTMLMediaElement>) => {
-    const t = elapsed();
+    const t = clock();
     if (t > 1.5) e.currentTarget.currentTime = t;
   };
   const yk = `${idx}:${p.shownAt}:${sound}:${slide}`;
-  if (yt.current.k !== yk) yt.current = { k: yk, s: Math.floor(elapsed()) };
+  if (yt.current.k !== yk) yt.current = { k: yk, s: Math.max(0, Math.floor(clock())) };
 
   const wait = p.startAt ? new Date(p.startAt).getTime() - (now + skew) : 0;
   const bg = p.background || '';
   const isCode = bg.startsWith('code:');
   const bgStyle = bg && bg !== 'night' && !isCode ? { backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined;
-  const hasMedia = !!cur && !cur.countdown && !!(cur.video || cur.audio);
+  const hasMedia = !!c && !c.countdown && !!(c.video || c.audio);
 
   return (
     <main className={`live ${mon ? 'monpage' : ''}`}>
@@ -136,27 +136,27 @@ export default function Live({ params }: { params: { id: string } }) {
           </>
         )}
         {!cur && <div className="slide"><h1>{p.title}</h1><p>Starting soon</p></div>}
-        {cur && cur.countdown && (
+        {c && c.countdown && (
           <div className="slide">
-            <h1>{cur.text || cur.title}</h1>
-            <p className="big">{two(Math.floor(Math.max(secs, 0) / 60))} মিনিট {two(Math.max(secs, 0) % 60)} সেকেন্ড</p>
+            <h1>{c.text || c.title}</h1>
+            <p className="big">{two(Math.floor(secs / 60))} মিনিট {two(secs % 60)} সেকেন্ড</p>
           </div>
         )}
-        {cur && !cur.countdown && cur.video && (
-          isFile(cur.video)
-            ? <video ref={vid} preload="auto" disablePictureInPicture controlsList="nodownload noremoteplayback" onContextMenu={(e) => e.preventDefault()} key={cur.video + sound} src={cur.video} muted={mon || !sound} playsInline autoPlay onLoadedMetadata={seek} onEnded={advance} style={noTouch} />
-            : <iframe key={cur.video + sound} src={embed(cur.video, yt.current.s, mon || !sound)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style={noTouch} />
+        {c && !c.countdown && c.video && (
+          isFile(c.video)
+            ? <video ref={vid} preload="auto" disablePictureInPicture controlsList="nodownload noremoteplayback" onContextMenu={(e) => e.preventDefault()} key={c.video + sound + idx} src={c.video} muted={mon || !sound} playsInline autoPlay onLoadedMetadata={seek} style={noTouch} />
+            : <iframe key={c.video + sound + idx} src={embed(c.video, yt.current.s, mon || !sound)} title="Video" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" style={noTouch} />
         )}
-        {cur && !cur.countdown && !cur.video && cur.image && (
+        {c && !c.countdown && !c.video && c.image && (
           <>
-            <img src={cur.image} alt="" style={{ ...fill, objectFit: 'contain' }} />
-            {cur.text && <div className="cap">{cur.text}</div>}
+            <img src={c.image} alt="" style={{ ...fill, objectFit: 'contain' }} />
+            {c.text && <div className="cap">{c.text}</div>}
           </>
         )}
-        {cur && !cur.countdown && !cur.video && !cur.image && (
-          <div className="slide"><h1>{cur.text || cur.title}</h1>{cur.speaker && <p>{cur.speaker}</p>}</div>
+        {c && !c.countdown && !c.video && !c.image && (
+          <div className="slide"><h1>{c.text || c.title}</h1>{c.speaker && <p>{c.speaker}</p>}</div>
         )}
-        {sound && !mon && cur && !cur.video && cur.audio && <audio key={cur.audio} src={cur.audio} autoPlay onLoadedMetadata={seek} onEnded={advance} />}
+        {sound && !mon && c && !c.countdown && !c.video && c.audio && <audio key={c.audio + idx} src={c.audio} autoPlay onLoadedMetadata={seek} />}
         {!mon && p.isLive && <span className="livetag">● LIVE</span>}
         {!mon && hasMedia && !sound && <button className="soundbtn" onClick={() => setSound(true)}>🔊 Tap for sound</button>}
         {!mon && <button className="fs" onClick={fullscreen}>Full screen</button>}
