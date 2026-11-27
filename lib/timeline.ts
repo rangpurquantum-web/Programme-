@@ -1,7 +1,7 @@
-export type Timed = { countdown?: number; video?: string; audio?: string; duration?: number };
+export type Timed = { countdown?: number; video?: string; audio?: string; duration?: number; show?: number };
 
 // How many seconds a slide lasts on its own. 0 = it stays until you push another slide.
-export const lenOf = (it: Timed) => (it.countdown ? it.countdown : it.video || it.audio ? it.duration || 0 : 0);
+export const lenOf = (it: Timed) => (it.countdown ? it.countdown : it.video || it.audio ? it.duration || it.show || 0 : it.show || 0);
 
 // Works out which slide is showing, from the slide you pushed and the seconds since the push.
 export function locate(items: Timed[], start: number, elapsed: number, chain: boolean) {
