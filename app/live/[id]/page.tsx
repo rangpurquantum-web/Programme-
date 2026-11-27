@@ -28,6 +28,8 @@ function left(ms: number) {
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
 const noTouch = { ...fill, pointerEvents: 'none' } as const;
 
+const isFile = (u: string) => !/(?:youtu\.be\/|youtube\.com\/)/i.test(u);
+
 export default function Live({ params }: { params: { id: string } }) {
   const [p, setP] = useState<P | null>(null);
   const [now, setNow] = useState(Date.now());
