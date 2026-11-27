@@ -5,6 +5,7 @@ import Link from 'next/link';
 type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; auto?: boolean };
 type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; currentIndex: number; isLive: boolean };
 type Tab = 'slides' | 'add' | 'look' | 'live';
+type MediaKey = 'image' | 'audio' | 'video';
 
 const D = {
   slides: 'M3 6a2 2 0 012-2h14a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V6zM8 21h8M12 17v4',
@@ -27,6 +28,33 @@ const toLocal = (s: string | null) => {
 const empty = { title: '', text: '', image: '', audio: '', video: '', countdown: '' };
 const fill = { position: 'absolute', inset: 0, width: '100%', height: '100%', border: 0 } as const;
 
+function uploadToCloudinary(file: File, onProgress: (n: number) => void): Promise<string> {
+  const cloud = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+  const preset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+  return new Promise((resolve, reject) => {
+    if (!cloud || !preset) return reject(new Error('Cloudinary environment variables are missing'));
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('upload_preset', preset);
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${cloud}/auto/upload`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      try {
+        const res = JSON.parse(xhr.responseText);
+        if (xhr.status >= 200 && xhr.status < 300 && res.secure_url) resolve(res.secure_url);
+        else reject(new Error(res.error?.message || 'Upload failed'));
+      } catch {
+        reject(new Error('Upload failed'));
+      }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(fd);
+  });
+}
+
 function Mon({ label, tone, src, off }: { label: string; tone: string; src: string; off?: boolean }) {
   return (
     <div className={`opmon ${tone}`}>
@@ -48,6 +76,8 @@ export default function Control({ params }: { params: { id: string } }) {
   const [bg, setBg] = useState('');
   const [code, setCode] = useState('');
   const [copied, setCopied] = useState(false);
+  const [up, setUp] = useState<{ k: MediaKey; pct: number } | null>(null);
+  const [upErr, setUpErr] = useState('');
   const set = (k: string, v: string) => setF((o) => ({ ...o, [k]: v }));
 
   const load = useCallback(async () => {
@@ -67,6 +97,20 @@ export default function Control({ params }: { params: { id: string } }) {
     if (r.ok) setP(await r.json());
   }
 
+  async function pick(k: MediaKey, file?: File) {
+    if (!file) return;
+    setUpErr('');
+    setUp({ k, pct: 0 });
+    try {
+      const u = await uploadToCloudinary(file, (pct) => setUp({ k, pct }));
+      set(k, u);
+    } catch (e) {
+      setUpErr('Upload failed: ' + (e as Error).message);
+    } finally {
+      setUp(null);
+    }
+  }
+
   if (!p) return <main className="op">Loading…</main>;
 
   const bgNow = p.background || '';
@@ -75,7 +119,7 @@ export default function Control({ params }: { params: { id: string } }) {
   const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/live/${p._id}`;
 
   function submit() {
-    if (!p) return;
+    if (!p || up) return;
     const secs = f.countdown ? Math.round(parseFloat(f.countdown) * 60) : 0;
     const title = f.title.trim() || f.text.trim().slice(0, 40) || (secs ? 'Break' : '');
     if (!title && !f.image.trim() && !f.video.trim()) return;
@@ -109,6 +153,26 @@ export default function Control({ params }: { params: { id: string } }) {
     { id: 'look', label: 'Look' },
     { id: 'live', label: 'Live' },
   ];
+
+  const mediaRow = (k: MediaKey, placeholder: string) => (
+    <div className="row">
+      <input value={f[k]} onChange={(e) => set(k, e.target.value)} placeholder={placeholder} />
+      <label className="btn ghost" style={{ cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        {up?.k === k ? `${up.pct}%` : 'Upload'}
+        <input
+          type="file"
+          accept={`${k}/*`}
+          hidden
+          disabled={!!up}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = '';
+            pick(k, file);
+          }}
+        />
+      </label>
+    </div>
+  );
 
   return (
     <main className="op">
@@ -148,12 +212,13 @@ export default function Control({ params }: { params: { id: string } }) {
           <h2>{editing !== null ? `Edit slide ${editing + 1}` : 'Add a slide'}</h2>
           <div className="row"><input value={f.title} onChange={(e) => set('title', e.target.value)} placeholder="Slide name (for your list)" /></div>
           <div className="row"><input value={f.text} onChange={(e) => set('text', e.target.value)} placeholder="Text on the slide" /></div>
-          <div className="row"><input value={f.image} onChange={(e) => set('image', e.target.value)} placeholder="Image link (optional)" /></div>
-          <div className="row"><input value={f.audio} onChange={(e) => set('audio', e.target.value)} placeholder="Audio link (optional)" /></div>
-          <div className="row"><input value={f.video} onChange={(e) => set('video', e.target.value)} placeholder="Video link (optional)" /></div>
+          {mediaRow('image', 'Image link (optional)')}
+          {mediaRow('audio', 'Audio link (optional)')}
+          {mediaRow('video', 'Video link (optional)')}
+          {upErr && <p style={{ color: 'var(--live)' }}>{upErr}</p>}
           <div className="row"><input type="number" min="0" step="0.5" value={f.countdown} onChange={(e) => set('countdown', e.target.value)} placeholder="Break countdown in minutes (optional)" /></div>
           <div className="row">
-            <button onClick={submit}>{editing !== null ? 'Save changes' : 'Add slide'}</button>
+            <button onClick={submit} disabled={!!up}>{up ? 'Uploading…' : editing !== null ? 'Save changes' : 'Add slide'}</button>
             {editing !== null && <button className="ghost" onClick={() => { setEditing(null); setF(empty); setTab('slides'); }}>Cancel</button>}
           </div>
         </>
