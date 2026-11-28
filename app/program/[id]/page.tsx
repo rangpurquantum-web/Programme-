@@ -427,10 +427,11 @@ export default function Control({ params }: { params: { id: string } }) {
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
           {p.items.map((it, i) => (
             <div className={`oprow ${i === si ? 'pv' : ''} ${i === liveIdx && p.isLive ? 'lv' : ''} ${it.camera ? 'cam' : ''}`} key={i}>
-              <button className="t" onClick={() => setSel(i)}>
+              <button className="t" onClick={() => { setSel(i); setPrevCam(0); }}>
                 <strong>{i + 1}. {it.title}</strong>
                 <small>{[i === liveIdx && p.isLive && 'LIVE', it.camera && 'Live Camera', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown'), !it.countdown && it.show && `Shows ${it.show} sec`].filter(Boolean).join(' · ') || ' '}</small>
               </button>
+              <button className="ic pushi" onClick={() => { setSel(i); setPrevCam(0); save({ currentIndex: i, ui: { cam: 0 } }); }} aria-label="Push slide to live">Push</button>
               <button className="ghost ic" onClick={() => startEdit(i)} aria-label="Edit slide"><Ic d={D.edit} /></button>
               <button className="ghost ic" onClick={() => remove(i)} aria-label="Delete slide"><Ic d={D.del} /></button>
             </div>
