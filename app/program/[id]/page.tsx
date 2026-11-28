@@ -380,7 +380,6 @@ export default function Control({ params }: { params: { id: string } }) {
         <>
           <div className="opmons">
             <Mon label="PREVIEW" tone="pv" src={`/live/${p._id}?mon=1&slide=${si}`} />
-            <Mon label="LIVE" tone="lv" src={`/live/${p._id}?mon=1`} off={!p.isLive} />
           </div>
           <button className="oppush" disabled={!prev} onClick={() => save({ currentIndex: si })}>Push to live ▸</button>
           <div className="row">
