@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+const KEY = "pf-live-id";
+
 export default function GlobalLivePlayer() {
   const pathname = usePathname() || "";
   const router = useRouter();
@@ -11,30 +13,33 @@ export default function GlobalLivePlayer() {
 
   useEffect(() => {
     setEmbed(new URLSearchParams(window.location.search).get("embed") === "1");
-    const saved = sessionStorage.getItem("pf-live-id");
-    if (saved) setLiveId(saved);
+    try {
+      const saved = localStorage.getItem(KEY);
+      if (saved) setLiveId(saved);
+    } catch {}
   }, []);
 
   useEffect(() => {
     const m = pathname.match(/^\/live\/([^/]+)/);
     if (m) {
       setLiveId(m[1]);
-      sessionStorage.setItem("pf-live-id", m[1]);
+      try { localStorage.setItem(KEY, m[1]); } catch {}
     }
   }, [pathname]);
 
   const onLivePage = pathname.startsWith("/live/");
-  if (embed || onLivePage || !liveId) return null;
+  const onControl = pathname.startsWith("/program/");
+  if (embed || onLivePage || onControl || !liveId) return null;
 
   const close = () => {
-    sessionStorage.removeItem("pf-live-id");
+    try { localStorage.removeItem(KEY); } catch {}
     setLiveId(null);
   };
 
   const btn = { background: "none", border: 0, color: "#fff", fontSize: 12, padding: 0, cursor: "pointer" } as const;
 
   return (
-    <div style={{ position: "fixed", right: 12, bottom: 84, zIndex: 50, width: "min(340px, 80vw)", overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,.25)", background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
+    <div style={{ position: "fixed", right: 12, bottom: 12, zIndex: 50, width: "min(340px, 80vw)", overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,.25)", background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#171717", color: "#fff", fontSize: 12, padding: "6px 10px" }}>
         <span>● LIVE</span>
         <span style={{ display: "flex", gap: 12 }}>
