@@ -7,6 +7,7 @@ export default function CameraView({ sound }: { sound: boolean }) {
   const aref = useRef<HTMLAudioElement>(null);
   const [state, setState] = useState<'wait' | 'live' | 'error'>('wait');
   const [flip, setFlip] = useState(false);
+  const [auto, setAuto] = useState(false);
   useEffect(() => {
     setFlip(new URLSearchParams(window.location.search).get('flip') === '1');
   }, []);
@@ -40,7 +41,9 @@ export default function CameraView({ sound }: { sound: boolean }) {
         h.room = room;
         const sync = () => {
           let hasVideo = false;
+          let front = false;
           room.remoteParticipants.forEach((p) => {
+            if (p.attributes?.facing === 'user') front = true;
             p.trackPublications.forEach((pub) => {
               const t = pub.track;
               if (!t) return;
@@ -51,12 +54,14 @@ export default function CameraView({ sound }: { sound: boolean }) {
               if (t.kind === Track.Kind.Audio && aref.current) t.attach(aref.current);
             });
           });
+          setAuto(front);
           setState(hasVideo ? 'live' : 'wait');
         };
         room.on(RoomEvent.TrackSubscribed, sync);
         room.on(RoomEvent.TrackUnsubscribed, sync);
         room.on(RoomEvent.ParticipantConnected, sync);
         room.on(RoomEvent.ParticipantDisconnected, sync);
+        room.on(RoomEvent.ParticipantAttributesChanged, sync);
         await room.connect(d.url, d.token);
         if (h.dead) {
           room.disconnect();
@@ -89,7 +94,7 @@ export default function CameraView({ sound }: { sound: boolean }) {
         playsInline
         onLoadedMetadata={fitIt}
         onResize={fitIt}
-        style={{ width: '100%', height: '100%', objectFit: fit, transform: flip ? 'scaleX(-1)' : 'none' }}
+        style={{ width: '100%', height: '100%', objectFit: fit, transform: flip || auto ? 'scaleX(-1)' : 'none' }}
       />
       <audio ref={aref} autoPlay muted={!sound} />
       {state !== 'live' && (

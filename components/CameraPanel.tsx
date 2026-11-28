@@ -122,6 +122,7 @@ export default function CameraPanel() {
     try {
       await vTrack.current?.restartTrack({ facingMode: next, resolution: { ...RES[res], frameRate: 30 } });
       setFacing(next);
+      roomRef.current?.localParticipant.setAttributes({ facing: next }).catch(() => {});
       readZoom();
     } catch {
       setMsg('ক্যামেরা পরিবর্তন করা যায়নি');
@@ -156,6 +157,7 @@ export default function CameraPanel() {
       });
       await room.localParticipant.publishTrack(aTrack.current);
       roomRef.current = room;
+      room.localParticipant.setAttributes({ facing }).catch(() => {});
       try {
         wakeRef.current = await (navigator as any).wakeLock?.request('screen');
       } catch {}
