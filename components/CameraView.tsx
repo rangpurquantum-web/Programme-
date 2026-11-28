@@ -6,6 +6,11 @@ export default function CameraView({ sound }: { sound: boolean }) {
   const vref = useRef<HTMLVideoElement>(null);
   const aref = useRef<HTMLAudioElement>(null);
   const [state, setState] = useState<'wait' | 'live' | 'error'>('wait');
+  const [fit, setFit] = useState<'cover' | 'contain'>('contain');
+  const fitIt = (e: any) => {
+    const v = e.currentTarget as HTMLVideoElement;
+    if (v.videoWidth && v.videoHeight) setFit(v.videoWidth / v.videoHeight > 1.5 ? 'cover' : 'contain');
+  };
 
   useEffect(() => {
     const h: { room: Room | null; dead: boolean } = { room: null, dead: false };
@@ -66,7 +71,9 @@ export default function CameraView({ sound }: { sound: boolean }) {
         autoPlay
         muted
         playsInline
-        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        onLoadedMetadata={fitIt}
+        onResize={fitIt}
+        style={{ width: '100%', height: '100%', objectFit: fit }}
       />
       <audio ref={aref} autoPlay muted={!sound} />
       {state !== 'live' && (

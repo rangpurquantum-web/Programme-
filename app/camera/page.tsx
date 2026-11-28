@@ -38,6 +38,9 @@ export default function CameraPage() {
       setMsg("ক্যামেরা চালু হচ্ছে...");
       vTrack.current = await createLocalVideoTrack({ facingMode: facing, resolution: { width: 1280, height: 720, frameRate: 30 } });
       aTrack.current = await createLocalAudioTrack();
+      try {
+        await vTrack.current?.mediaStreamTrack.applyConstraints({ advanced: [{ zoom: 1 }] } as any);
+      } catch {}
       if (videoRef.current) vTrack.current.attach(videoRef.current);
       setCamOn(true);
       setMsg("");
@@ -135,7 +138,7 @@ export default function CameraPage() {
           autoPlay
           muted
           playsInline
-          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          style={{ width: "100%", height: "100%", objectFit: "contain" }}
         />
         <span
           style={{
