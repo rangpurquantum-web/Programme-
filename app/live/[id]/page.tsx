@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { locate } from '@/lib/timeline';
 import MiniWindow from '@/components/MiniWindow';
+import CameraView from '@/components/CameraView';
 
 type Item = {
   title: string;
@@ -18,6 +19,7 @@ type Item = {
   font?: string;
   color?: string;
   auto?: boolean;
+  camera?: boolean;
 };
 
 type Ui = {
@@ -448,7 +450,7 @@ export default function Live({ params }: { params: { id: string } }) {
   const hasMedia =
     !!c &&
     !c.countdown &&
-    !!(c.video || c.audio);
+    !!(c.video || c.audio || c.camera);
 
   const ui: Ui = p.ui || {};
 
@@ -621,6 +623,10 @@ export default function Live({ params }: { params: { id: string } }) {
         )}
 
 
+        {c && !c.countdown && c.camera && (
+          <CameraView sound={sound && !mon} />
+        )}
+
         {/* IMAGE */}
 
         {c && !c.countdown && !c.video && c.image && (
@@ -661,7 +667,7 @@ export default function Live({ params }: { params: { id: string } }) {
 
         {/* TEXT SLIDE */}
 
-        {c && !c.countdown && !c.video && !c.image && (
+        {c && !c.countdown && !c.camera && !c.video && !c.image && (
 
           <div className={`slide sz-${sz}`}>
 

@@ -6,7 +6,7 @@ import MediaLibrary from '@/components/MediaLibrary';
 import { pdfSlides } from '@/lib/pdfSlides';
 import PdfImport from '@/components/PdfImport';
 
-type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean };
+type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean; camera?: boolean };
 type Ui = { blackout?: boolean; banner?: { text: string; on: boolean }; ticker?: { text: string; on: boolean } };
 type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean; ui?: Ui };
 type Tab = 'slides' | 'add' | 'look' | 'live';
@@ -390,12 +390,15 @@ export default function Control({ params }: { params: { id: string } }) {
             <button className="ghost" style={{ flex: 1 }} disabled={liveIdx >= last} onClick={() => { save({ currentIndex: liveIdx + 1 }); setSel(liveIdx + 1); }}>Push next ▸▸</button>
             <button className={`dark ${ui.blackout ? 'on' : ''}`} style={{ flex: 1 }} onClick={() => save({ ui: { blackout: !ui.blackout } })}>{ui.blackout ? 'Blackout ON' : 'Blackout'}</button>
           </div>
+          <div className="row">
+            <button className="ghost" style={{ flex: 1 }} onClick={() => save({ items: [...p.items, { title: 'Live Camera', camera: true }] })}>+ Add Live Camera slide</button>
+          </div>
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
           {p.items.map((it, i) => (
             <div className={`oprow ${i === si ? 'pv' : ''} ${i === liveIdx && p.isLive ? 'lv' : ''}`} key={i}>
               <button className="t" onClick={() => setSel(i)}>
                 <strong>{i + 1}. {it.title}</strong>
-                <small>{[i === liveIdx && p.isLive && 'LIVE', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown'), !it.countdown && it.show && `Shows ${it.show} sec`].filter(Boolean).join(' · ') || ' '}</small>
+                <small>{[i === liveIdx && p.isLive && 'LIVE', it.camera && 'Live Camera', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown'), !it.countdown && it.show && `Shows ${it.show} sec`].filter(Boolean).join(' · ') || ' '}</small>
               </button>
               <button className="ghost ic" onClick={() => startEdit(i)} aria-label="Edit slide"><Ic d={D.edit} /></button>
               <button className="ghost ic" onClick={() => remove(i)} aria-label="Delete slide"><Ic d={D.del} /></button>
