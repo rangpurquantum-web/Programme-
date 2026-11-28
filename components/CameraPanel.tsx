@@ -180,7 +180,7 @@ export default function CameraPanel() {
       <style>{`
         .cp{display:flex;flex-direction:column;gap:12px}
         .cp .vid{position:relative;aspect-ratio:16/9;background:#000;border-radius:16px;overflow:hidden;border:1px solid #1f2640}
-        .cp .vid video{width:100%;height:100%;object-fit:contain;background:#000}
+        .cp .vid video{transform:none !important;width:100%;height:100%;object-fit:contain;background:#000}
         .cp .ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#71717a;font-size:14px}
         .cp .bd{position:absolute;top:8px;left:8px;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;background:rgba(0,0,0,.6);color:#fff}
         .cp .bd.live{background:#dc2626}

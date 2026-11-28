@@ -225,7 +225,7 @@ export default function CameraPage() {
         .stp.on{background:#1d3a8a;color:#fff;border-color:#3b82f6}
         .stp.done{color:#4ade80;border-color:#14532d}
         .video{position:relative;aspect-ratio:16/9;background:#000;border-radius:18px;overflow:hidden;border:1px solid #232a44;box-shadow:0 10px 30px rgba(0,0,0,.5)}
-        .video video{width:100%;height:100%;object-fit:contain;background:#000}
+        .video video{transform:none !important;width:100%;height:100%;object-fit:contain;background:#000}
         .ph{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:#71717a;font-size:14px}
         .badge{position:absolute;top:10px;left:10px;display:flex;align-items:center;gap:6px;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;background:rgba(0,0,0,.6)}
         .badge.live{background:#dc2626}
