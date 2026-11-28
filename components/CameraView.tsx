@@ -7,10 +7,22 @@ export default function CameraView({ sound }: { sound: boolean }) {
   const aref = useRef<HTMLAudioElement>(null);
   const [state, setState] = useState<'wait' | 'live' | 'error'>('wait');
   const [fit, setFit] = useState<'cover' | 'contain'>('contain');
-  const fitIt = (e: any) => {
-    const v = e.currentTarget as HTMLVideoElement;
-    if (v.videoWidth && v.videoHeight) setFit(v.videoWidth / v.videoHeight > 1.5 ? 'cover' : 'contain');
+  const fitIt = () => {
+    const v = vref.current;
+    const box = v?.parentElement;
+    if (!v || !box || !v.videoWidth || !v.videoHeight) return;
+    const vr = v.videoWidth / v.videoHeight;
+    const br = box.clientWidth / Math.max(box.clientHeight, 1);
+    setFit(Math.abs(vr - br) / br < 0.2 ? 'cover' : 'contain');
   };
+  useEffect(() => {
+    window.addEventListener('resize', fitIt);
+    document.addEventListener('fullscreenchange', fitIt);
+    return () => {
+      window.removeEventListener('resize', fitIt);
+      document.removeEventListener('fullscreenchange', fitIt);
+    };
+  }, []);
 
   useEffect(() => {
     const h: { room: Room | null; dead: boolean } = { room: null, dead: false };
