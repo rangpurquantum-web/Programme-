@@ -8,6 +8,17 @@ import {
   createLocalAudioTrack,
 } from "livekit-client";
 
+const btn = (bg: string, full = false): React.CSSProperties => ({
+  background: bg,
+  color: "#fff",
+  border: "none",
+  borderRadius: 12,
+  padding: "14px 16px",
+  fontSize: 15,
+  fontWeight: 600,
+  gridColumn: full ? "1 / 3" : undefined,
+});
+
 export default function CameraPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const roomRef = useRef<Room | null>(null);
@@ -24,16 +35,14 @@ export default function CameraPage() {
 
   async function startCamera() {
     try {
-      setMsg("");
-      vTrack.current = await createLocalVideoTrack({
-        facingMode: facing,
-        resolution: { width: 1280, height: 720 },
-      });
+      setMsg("ক্যামেরা চালু হচ্ছে...");
+      vTrack.current = await createLocalVideoTrack({ facingMode: facing });
       aTrack.current = await createLocalAudioTrack();
       if (videoRef.current) vTrack.current.attach(videoRef.current);
       setCamOn(true);
-    } catch {
-      setMsg("ক্যামেরা/মাইক্রোফোনের অনুমতি দিন");
+      setMsg("");
+    } catch (e: any) {
+      setMsg("ক্যামেরা চালু হয়নি: " + (e?.name || "") + " " + (e?.message || ""));
     }
   }
 
@@ -78,7 +87,7 @@ export default function CameraPage() {
       setLive(true);
       setMsg("");
     } catch (e: any) {
-      setMsg(e.message || "লাইভ শুরু করা যায়নি");
+      setMsg("লাইভ শুরু হয়নি: " + (e?.message || ""));
     }
   }
 
@@ -91,24 +100,50 @@ export default function CameraPage() {
     setLive(false);
   }
 
-  const btn = "rounded-xl px-4 py-3 text-sm font-semibold text-white";
-
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col gap-3 bg-black p-4 text-white">
-      <h1 className="text-lg font-bold">Live Camera</h1>
+    <main
+      style={{
+        maxWidth: 420,
+        margin: "0 auto",
+        minHeight: "100vh",
+        background: "#000",
+        color: "#fff",
+        padding: 16,
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+        boxSizing: "border-box",
+      }}
+    >
+      <h1 style={{ fontSize: 20, margin: 0 }}>Live Camera</h1>
 
-      <div className="relative overflow-hidden rounded-xl bg-zinc-900">
+      <div
+        style={{
+          position: "relative",
+          background: "#18181b",
+          borderRadius: 12,
+          overflow: "hidden",
+          aspectRatio: "16 / 9",
+        }}
+      >
         <video
           ref={videoRef}
           autoPlay
           muted
           playsInline
-          className="aspect-video w-full object-cover"
+          style={{ width: "100%", height: "100%", objectFit: "cover" }}
         />
         <span
-          className={`absolute left-2 top-2 rounded px-2 py-1 text-xs font-bold ${
-            live ? "bg-red-600" : "bg-zinc-700"
-          }`}
+          style={{
+            position: "absolute",
+            top: 8,
+            left: 8,
+            background: live ? "#dc2626" : "#3f3f46",
+            borderRadius: 6,
+            padding: "4px 8px",
+            fontSize: 12,
+            fontWeight: 700,
+          }}
         >
           {live ? "● LIVE" : camOn ? "Preview" : "Camera Off"}
         </span>
@@ -120,13 +155,20 @@ export default function CameraPage() {
           value={passcode}
           onChange={(e) => setPasscode(e.target.value)}
           placeholder="ক্যামেরা কোড"
-          className="rounded-xl bg-zinc-800 px-4 py-3 text-sm outline-none"
+          style={{
+            background: "#27272a",
+            color: "#fff",
+            border: "none",
+            borderRadius: 12,
+            padding: "14px 16px",
+            fontSize: 15,
+          }}
         />
       )}
 
-      <div className="grid grid-cols-2 gap-2">
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
         {!camOn && (
-          <button onClick={startCamera} className={`${btn} col-span-2 bg-blue-600`}>
+          <button onClick={startCamera} style={btn("#2563eb", true)}>
             Start Camera
           </button>
         )}
@@ -134,31 +176,31 @@ export default function CameraPage() {
           <button
             onClick={goLive}
             disabled={!passcode}
-            className={`${btn} col-span-2 bg-red-600 disabled:opacity-40`}
+            style={{ ...btn("#dc2626", true), opacity: passcode ? 1 : 0.4 }}
           >
             Go Live
           </button>
         )}
         {live && (
-          <button onClick={stopLive} className={`${btn} col-span-2 bg-zinc-700`}>
+          <button onClick={stopLive} style={btn("#3f3f46", true)}>
             Stop Live
           </button>
         )}
         {camOn && (
           <>
-            <button onClick={switchCamera} className={`${btn} bg-zinc-700`}>
+            <button onClick={switchCamera} style={btn("#3f3f46")}>
               Switch Camera
             </button>
-            <button onClick={toggleMic} className={`${btn} bg-zinc-700`}>
+            <button onClick={toggleMic} style={btn("#3f3f46")}>
               {micOn ? "Mic: On" : "Mic: Off"}
             </button>
           </>
         )}
       </div>
 
-      {msg && <p className="text-sm text-yellow-400">{msg}</p>}
+      {msg && <p style={{ color: "#facc15", fontSize: 14, margin: 0 }}>{msg}</p>}
       {live && (
-        <p className="text-xs text-zinc-400">
+        <p style={{ color: "#a1a1aa", fontSize: 12, margin: 0 }}>
           লাইভ চলাকালীন এই পেজ খোলা ও স্ক্রিন চালু রাখুন।
         </p>
       )}
