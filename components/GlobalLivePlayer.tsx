@@ -28,8 +28,7 @@ export default function GlobalLivePlayer() {
   }, [pathname]);
 
   const onLivePage = pathname.startsWith("/live/");
-  const onControl = pathname.startsWith("/program/");
-  if (embed || onLivePage || onControl || !liveId) return null;
+  if (embed || onLivePage || !liveId) return null;
 
   const close = () => {
     try { localStorage.removeItem(KEY); } catch {}
@@ -39,7 +38,7 @@ export default function GlobalLivePlayer() {
   const btn = { background: "none", border: 0, color: "#fff", fontSize: 12, padding: 0, cursor: "pointer" } as const;
 
   return (
-    <div style={{ position: "fixed", right: 12, bottom: 12, zIndex: 50, width: "min(340px, 80vw)", overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,.25)", background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
+    <div style={{ position: "fixed", right: 12, bottom: pathname.startsWith("/program/") ? 84 : 12, zIndex: 50, width: "min(340px, 80vw)", overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,.25)", background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#171717", color: "#fff", fontSize: 12, padding: "6px 10px" }}>
         <span>● LIVE</span>
         <span style={{ display: "flex", gap: 12 }}>
