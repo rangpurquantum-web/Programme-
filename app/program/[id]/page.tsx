@@ -395,7 +395,7 @@ export default function Control({ params }: { params: { id: string } }) {
           </div>
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
           {p.items.map((it, i) => (
-            <div className={`oprow ${i === si ? 'pv' : ''} ${i === liveIdx && p.isLive ? 'lv' : ''}`} key={i}>
+            <div className={`oprow ${i === si ? 'pv' : ''} ${i === liveIdx && p.isLive ? 'lv' : ''} ${it.camera ? 'cam' : ''}`} key={i}>
               <button className="t" onClick={() => setSel(i)}>
                 <strong>{i + 1}. {it.title}</strong>
                 <small>{[i === liveIdx && p.isLive && 'LIVE', it.camera && 'Live Camera', it.text && 'Text', it.image && 'Image', it.audio && 'Audio', it.video && 'Video', it.countdown && `Break ${Math.round(it.countdown / 60)} min`, !it.countdown && (it.audio || it.video) && (it.duration ? `Length ${mmss(it.duration)}` : 'Length unknown'), !it.countdown && it.show && `Shows ${it.show} sec`].filter(Boolean).join(' · ') || ' '}</small>
