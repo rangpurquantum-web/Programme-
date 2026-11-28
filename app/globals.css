@@ -137,3 +137,10 @@ body:has(.op) { background:#05070d; }
 .op button.dark { background:#000; border:1px solid #3f4a73; }
 .op button.dark.on { background:#dc2626; border-color:#dc2626; }
 /* ===== END OPERATOR PAGE REDESIGN ===== */
+
+/* ===== CAMERA SOURCE BUTTONS ===== */
+.camsrc { display:flex; gap:8px; margin-top:12px; }
+.op button.camb { flex:1; background:#161d36; border:1px solid #232c4d; color:#e5e7eb; }
+.op button.camb.sel { background:#7c3aed; border-color:#7c3aed; color:#fff; }
+.op button.camb.onair { box-shadow:0 0 0 2px #ef4444; }
+/* ===== END CAMERA SOURCE BUTTONS ===== */

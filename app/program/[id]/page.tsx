@@ -3,12 +3,13 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { locate } from '@/lib/timeline';
 import MediaLibrary from '@/components/MediaLibrary';
+import CameraView from '@/components/CameraView';
 import { pdfSlides } from '@/lib/pdfSlides';
 import PdfImport from '@/components/PdfImport';
 import CameraPanel from '@/components/CameraPanel';
 
 type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean; camera?: boolean };
-type Ui = { blackout?: boolean; banner?: { text: string; on: boolean }; ticker?: { text: string; on: boolean } };
+type Ui = { cam?: number; blackout?: boolean; banner?: { text: string; on: boolean }; ticker?: { text: string; on: boolean } };
 type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean; ui?: Ui };
 type Tab = 'slides' | 'add' | 'look' | 'live' | 'camera';
 type MediaKey = 'image' | 'audio' | 'video';
@@ -198,6 +199,7 @@ export default function Control({ params }: { params: { id: string } }) {
   const [note, setNote] = useState('');
   const [now, setNow] = useState(Date.now());
   const [skew, setSkew] = useState(0);
+  const [prevCam, setPrevCam] = useState(0);
   const set = (k: string, v: string) => setF((o) => ({ ...o, [k]: v }));
 
   // Reads the length of older slides by itself, so every slide knows when it ends.
@@ -386,15 +388,41 @@ export default function Control({ params }: { params: { id: string } }) {
       {tab === 'slides' && (
         <>
           <div className="opmons">
+            {prevCam > 0 ? (
+            <div className="opmon pv">
+              <div className="oplabel">PREVIEW · CAM {prevCam}</div>
+              <div className="player mon">
+                <CameraView cam={prevCam} sound={false} />
+              </div>
+            </div>
+          ) : (
             <Mon label="PREVIEW" tone="pv" src={`/live/${p._id}?mon=1&slide=${si}`} />
+          )}
           </div>
-          <button className="oppush" disabled={!prev} onClick={() => save({ currentIndex: si })}>Push to live ▸</button>
+          <div className="camsrc">
+            {[1, 2, 3].map((n) => (
+              <button
+                key={n}
+                className={"camb " + (prevCam === n ? "sel" : "") + " " + (ui.cam === n ? "onair" : "")}
+                onClick={() => setPrevCam(prevCam === n ? 0 : n)}
+              >
+                Cam {n}{ui.cam === n ? " ●" : ""}
+              </button>
+            ))}
+          </div>
+          {prevCam > 0 ? (
+            <button className="oppush" onClick={() => save({ ui: { cam: prevCam } })}>Push Camera {prevCam} to live ▸</button>
+          ) : (
+            <button className="oppush" disabled={!prev} onClick={() => save({ currentIndex: si, ui: { cam: 0 } })}>Push to live ▸</button>
+          )}
+          {!!ui.cam && (
+            <button className="ghost" style={{ width: "100%", marginBottom: 8 }} onClick={() => save({ ui: { cam: 0 } })}>
+              Camera {ui.cam} is live · Back to slides
+            </button>
+          )}
           <div className="row">
-            <button className="ghost" style={{ flex: 1 }} disabled={liveIdx >= last} onClick={() => { save({ currentIndex: liveIdx + 1 }); setSel(liveIdx + 1); }}>Push next ▸▸</button>
+            <button className="ghost" style={{ flex: 1 }} disabled={liveIdx >= last} onClick={() => { save({ currentIndex: liveIdx + 1, ui: { cam: 0 } }); setSel(liveIdx + 1); }}>Push next ▸▸</button>
             <button className={`dark ${ui.blackout ? 'on' : ''}`} style={{ flex: 1 }} onClick={() => save({ ui: { blackout: !ui.blackout } })}>{ui.blackout ? 'Blackout ON' : 'Blackout'}</button>
-          </div>
-          <div className="row">
-            <button className="ghost" style={{ flex: 1 }} onClick={() => save({ items: [...p.items, { title: 'Live Camera', camera: true }] })}>+ Add Live Camera slide</button>
           </div>
           {p.items.length === 0 && <div className="empty">No slides yet. Open the Add tab.</div>}
           {p.items.map((it, i) => (

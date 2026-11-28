@@ -24,6 +24,7 @@ type Item = {
 
 type Ui = {
   blackout?: boolean;
+  cam?: number;
   banner?: { text: string; on: boolean };
   ticker?: { text: string; on: boolean };
 };
@@ -450,11 +451,12 @@ export default function Live({ params }: { params: { id: string } }) {
   const hasMedia =
     !!c &&
     !c.countdown &&
-    !!(c.video || c.audio || c.camera);
+    !!(c.video || c.audio || c.camera) || !!(p.ui && p.ui.cam && slide === null);
 
   const ui: Ui = p.ui || {};
 
   const banner = ui.banner;
+  const camNo = ui.cam || 0;
   const ticker = ui.ticker;
 
   const tickOn = !!(
@@ -697,6 +699,12 @@ export default function Live({ params }: { params: { id: string } }) {
 
         )}
 
+
+        {camNo > 0 && slide === null && p.isLive && !dark && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
+            <CameraView cam={camNo} sound={sound && !mon} />
+          </div>
+        )}
 
         {/* BANNER */}
 

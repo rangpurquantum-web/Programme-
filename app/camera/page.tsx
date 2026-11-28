@@ -55,6 +55,7 @@ export default function CameraPage() {
   const wakeRef = useRef<any>(null);
 
   const [passcode, setPasscode] = useState("");
+  const [camNo, setCamNo] = useState(1);
   const [showCode, setShowCode] = useState(false);
   const [facing, setFacing] = useState<"environment" | "user">("environment");
   const [res, setRes] = useState("720");
@@ -172,7 +173,7 @@ export default function CameraPage() {
       const r = await fetch("/api/livekit/token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ passcode, cam: camNo }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || "Error");
@@ -341,6 +342,14 @@ export default function CameraPage() {
 
         {camOn && !live && (
           <div className="card">
+            <div className="lbl">ক্যামেরা নম্বর</div>
+            <div className="seg">
+              {[1, 2, 3].map((n) => (
+                <button key={n} className={camNo === n ? "on" : ""} onClick={() => setCamNo(n)}>
+                  Cam {n}
+                </button>
+              ))}
+            </div>
             <div className="lbl">ক্যামেরা কোড</div>
             <div className="field">
               <input

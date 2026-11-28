@@ -28,6 +28,7 @@ export default function CameraPanel() {
   const wakeRef = useRef<any>(null);
 
   const [passcode, setPasscode] = useState('');
+  const [camNo, setCamNo] = useState(1);
   const [facing, setFacing] = useState<'environment' | 'user'>('user');
   const [res, setRes] = useState('720');
   const [zoom, setZoom] = useState<Zoom | null>(null);
@@ -144,7 +145,7 @@ export default function CameraPanel() {
       const r = await fetch('/api/livekit/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ passcode }),
+        body: JSON.stringify({ passcode, cam: camNo }),
       });
       const data = await r.json();
       if (!r.ok) throw new Error(data.error || 'Error');
@@ -220,7 +221,15 @@ export default function CameraPanel() {
 
       {camOn && !live && (
         <div className="card">
-          <div className="lb">ক্যামেরা কোড</div>
+          <div className="lb">ক্যামেরা নম্বর</div>
+            <div className="seg">
+              {[1, 2, 3].map((n) => (
+                <button key={n} className={camNo === n ? "on" : ""} onClick={() => setCamNo(n)}>
+                  Cam {n}
+                </button>
+              ))}
+            </div>
+            <div className="lb">ক্যামেরা কোড</div>
           <input type="password" value={passcode} onChange={(e) => setPasscode(e.target.value)} placeholder="কোডটি লিখুন" autoComplete="off" />
           <button className="go" onClick={goLive} disabled={!passcode || busy}>{busy ? 'সংযোগ হচ্ছে...' : 'লাইভ শুরু করুন'}</button>
         </div>
