@@ -8,7 +8,7 @@ import {
   createLocalAudioTrack,
 } from "livekit-client";
 
-const RES: Record<string, { width: number; height: number }> = {
+const RES: Record<string, any> = {
   "480": { width: 854, height: 480, aspectRatio: { exact: 16 / 9 } as any },
   "720": { width: 1280, height: 720, aspectRatio: { exact: 16 / 9 } as any },
   "1080": { width: 1920, height: 1080, aspectRatio: { exact: 16 / 9 } as any },
