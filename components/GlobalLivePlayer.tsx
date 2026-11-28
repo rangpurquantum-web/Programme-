@@ -34,7 +34,7 @@ export default function GlobalLivePlayer() {
   }, [pathname]);
 
   const onLivePage = pathname.startsWith("/live/");
-  if (embed || onLivePage || pathname.startsWith("/program/") || !liveId) return null;
+  if (embed || onLivePage || !liveId) return null;
 
   const close = () => {
     try { localStorage.removeItem(KEY); } catch {}
@@ -66,7 +66,7 @@ export default function GlobalLivePlayer() {
   const btn = { background: "none", border: 0, color: "#fff", fontSize: 12, padding: 0, cursor: "pointer" } as const;
   const place = pos
     ? { left: Math.max(0, Math.min(pos.x, window.innerWidth - 120)), top: Math.max(0, Math.min(pos.y, window.innerHeight - 80)) }
-    : { right: 12, bottom: 12 };
+    : { right: 12, bottom: pathname.startsWith("/program/") ? 84 : 12 };
 
   return (
     <div ref={box} style={{ position: "fixed", ...place, zIndex: 50, width: "min(340px, 80vw)", overflow: "hidden", borderRadius: 12, border: "1px solid rgba(255,255,255,.25)", background: "#000", boxShadow: "0 10px 30px rgba(0,0,0,.5)" }}>
