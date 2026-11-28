@@ -5,11 +5,12 @@ import { locate } from '@/lib/timeline';
 import MediaLibrary from '@/components/MediaLibrary';
 import { pdfSlides } from '@/lib/pdfSlides';
 import PdfImport from '@/components/PdfImport';
+import CameraPanel from '@/components/CameraPanel';
 
 type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean; camera?: boolean };
 type Ui = { blackout?: boolean; banner?: { text: string; on: boolean }; ticker?: { text: string; on: boolean } };
 type P = { _id: string; title: string; items: Item[]; startAt: string | null; background: string; shownAt: string | null; serverNow: string; currentIndex: number; isLive: boolean; ui?: Ui };
-type Tab = 'slides' | 'add' | 'look' | 'live';
+type Tab = 'slides' | 'add' | 'look' | 'live' | 'camera';
 type MediaKey = 'image' | 'audio' | 'video';
 
 const D = {
@@ -18,6 +19,7 @@ const D = {
   look: 'M4 7h9M17 7h3M15 5v4M4 17h3M11 17h9M9 15v4',
   live: 'M12 12h.01M16.2 7.8a6 6 0 010 8.4M7.8 16.2a6 6 0 010-8.4M19 5a10 10 0 010 14M5 19A10 10 0 015 5',
   edit: 'M4 20h4L19 9l-4-4L4 16v4z',
+  camera: 'M15 10l5-3v10l-5-3M4 6h10a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z',
   del: 'M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3',
 };
 const Ic = ({ d }: { d: string }) => (
@@ -346,6 +348,7 @@ export default function Control({ params }: { params: { id: string } }) {
     { id: 'slides', label: 'Slides' },
     { id: 'add', label: editing !== null ? 'Edit' : 'Add' },
     { id: 'look', label: 'Look' },
+    { id: 'camera', label: 'Camera' },
     { id: 'live', label: 'Live' },
   ];
 
@@ -515,6 +518,11 @@ export default function Control({ params }: { params: { id: string } }) {
           </div>
         </>
       )}
+
+      <div style={{ display: tab === 'camera' ? 'block' : 'none' }}>
+        <h2>Live Camera</h2>
+        <CameraPanel />
+      </div>
 
       <nav className="opnav">
         {tabs.map((t) => (
