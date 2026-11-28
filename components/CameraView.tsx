@@ -66,7 +66,7 @@ export default function CameraView({ sound }: { sound: boolean }) {
         autoPlay
         muted
         playsInline
-        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
       />
       <audio ref={aref} autoPlay muted={!sound} />
       {state !== 'live' && (
