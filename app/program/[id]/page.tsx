@@ -238,7 +238,7 @@ export default function Control({ params }: { params: { id: string } }) {
   }, [params.id]);
   useEffect(() => {
     load();
-    const h = setInterval(load, 2000);
+    const h = setInterval(load, 1000);
     return () => clearInterval(h);
   }, [load]);
   useEffect(() => {

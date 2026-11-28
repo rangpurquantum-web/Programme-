@@ -194,7 +194,7 @@ export default function Live({ params }: { params: { id: string } }) {
 
     tick();
 
-    const h = setInterval(tick, 2000);
+    const h = setInterval(tick, 1000);
     const c = setInterval(() => setNow(Date.now()), 1000);
 
     return () => {
