@@ -6,6 +6,10 @@ export default function CameraView({ sound }: { sound: boolean }) {
   const vref = useRef<HTMLVideoElement>(null);
   const aref = useRef<HTMLAudioElement>(null);
   const [state, setState] = useState<'wait' | 'live' | 'error'>('wait');
+  const [flip, setFlip] = useState(false);
+  useEffect(() => {
+    setFlip(new URLSearchParams(window.location.search).get('flip') === '1');
+  }, []);
   const [fit, setFit] = useState<'cover' | 'contain'>('contain');
   const fitIt = () => {
     const v = vref.current;
@@ -85,7 +89,7 @@ export default function CameraView({ sound }: { sound: boolean }) {
         playsInline
         onLoadedMetadata={fitIt}
         onResize={fitIt}
-        style={{ width: '100%', height: '100%', objectFit: fit }}
+        style={{ width: '100%', height: '100%', objectFit: fit, transform: flip ? 'scaleX(-1)' : 'none' }}
       />
       <audio ref={aref} autoPlay muted={!sound} />
       {state !== 'live' && (
