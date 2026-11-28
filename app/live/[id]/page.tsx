@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { locate } from '@/lib/timeline';
+import MiniWindow from '@/components/MiniWindow';
 
 type Item = {
   title: string;
@@ -788,6 +789,19 @@ export default function Live({ params }: { params: { id: string } }) {
           )}
 
 
+        {!mon && (
+          <MiniWindow
+            program={p.title}
+            title={c?.title}
+            text={c?.text}
+            sub={c?.speaker}
+            secs={c?.countdown ? secs : undefined}
+            bg={bg}
+            image={c && !c.countdown && !c.video ? c.image : undefined}
+            media={c?.video ? 'video' : c?.audio ? 'audio' : ''}
+            banner={banner && banner.on ? banner.text : undefined}
+          />
+        )}
         {/* FULLSCREEN */}
 
         {!mon && (
