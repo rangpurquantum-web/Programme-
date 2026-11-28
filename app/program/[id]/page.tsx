@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { locate } from '@/lib/timeline';
+import PdfImport from '@/components/PdfImport';
 
 type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean };
 type Ui = { blackout?: boolean; banner?: { text: string; on: boolean }; ticker?: { text: string; on: boolean } };
@@ -411,6 +412,7 @@ export default function Control({ params }: { params: { id: string } }) {
           {mediaRow('audio', 'Audio link (optional)')}
           {mediaRow('video', 'Video link (optional)')}
           {upErr && <p style={{ color: 'var(--live)' }}>{upErr}</p>}
+          <PdfImport onDone={(s) => save({ items: [...p.items, ...s] })} />
           <div className="row"><input type="number" min="0" step="0.5" value={f.countdown} onChange={(e) => set('countdown', e.target.value)} placeholder="Break countdown in minutes (optional)" /></div>
           <div className="row"><input type="number" min="0" step="1" value={f.show} onChange={(e) => set('show', e.target.value)} placeholder="Show for how many seconds (optional)" /></div>
           <div className="row">
