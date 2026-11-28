@@ -2,6 +2,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { locate } from '@/lib/timeline';
+import MediaLibrary from '@/components/MediaLibrary';
+import { pdfSlides } from '@/lib/pdfSlides';
 import PdfImport from '@/components/PdfImport';
 
 type Item = { title: string; speaker?: string; text?: string; image?: string; audio?: string; video?: string; countdown?: number; duration?: number; show?: number; size?: string; font?: string; color?: string; auto?: boolean };
@@ -256,6 +258,7 @@ export default function Control({ params }: { params: { id: string } }) {
     try {
       const u = await uploadToCloudinary(file, (pct) => setUp({ k, pct }));
       set(k, u);
+      fetch('/api/media', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ url: u, kind: k, name: file.name }) }).then(() => window.dispatchEvent(new Event('media-changed'))).catch(() => {});
     } catch (e) {
       setUpErr('Upload failed: ' + (e as Error).message);
     } finally {
@@ -412,6 +415,13 @@ export default function Control({ params }: { params: { id: string } }) {
           {mediaRow('audio', 'Audio link (optional)')}
           {mediaRow('video', 'Video link (optional)')}
           {upErr && <p style={{ color: 'var(--live)' }}>{upErr}</p>}
+          <MediaLibrary
+            slides={p.items}
+            onUse={(m) => {
+              if (m.kind === 'pdf') save({ items: [...p.items, ...pdfSlides(m.url, m.pages || 1, m.name)] });
+              else set(m.kind, m.url);
+            }}
+          />
           <PdfImport onDone={(s) => save({ items: [...p.items, ...s] })} />
           <div className="row"><input type="number" min="0" step="0.5" value={f.countdown} onChange={(e) => set('countdown', e.target.value)} placeholder="Break countdown in minutes (optional)" /></div>
           <div className="row"><input type="number" min="0" step="1" value={f.show} onChange={(e) => set('show', e.target.value)} placeholder="Show for how many seconds (optional)" /></div>

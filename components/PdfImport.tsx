@@ -1,11 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-
-export type ImportedSlide = { title: string; text: string; image: string; show?: number };
+import { pdfSlides, type PdfSlide } from '@/lib/pdfSlides';
 
 // Turns a PDF (exported from PowerPoint) into one image slide per page, using Cloudinary.
-export default function PdfImport({ onDone }: { onDone: (slides: ImportedSlide[]) => void }) {
+export default function PdfImport({ onDone }: { onDone: (slides: PdfSlide[]) => void }) {
   const [pct, setPct] = useState<number | null>(null);
   const [sec, setSec] = useState('');
   const [msg, setMsg] = useState('');
@@ -40,16 +39,18 @@ export default function PdfImport({ onDone }: { onDone: (slides: ImportedSlide[]
         setMsg((res && res.error && res.error.message) || 'Upload failed');
         return;
       }
-      const n = Math.min(100, Math.max(1, Number(res.pages) || 1));
+      const pages = Number(res.pages) || 1;
       const s = sec ? Math.round(parseFloat(sec)) : 0;
-      const base = file.name.replace(/\.[^.]+$/, '');
-      const slides: ImportedSlide[] = [];
-      for (let i = 1; i <= n; i++) {
-        const image = String(res.secure_url).replace('/upload/', `/upload/pg_${i},w_1600,q_auto/`).replace(/\.pdf$/i, '.jpg');
-        slides.push({ title: `${base} ${i}`, text: '', image, ...(s > 0 ? { show: s } : {}) });
-      }
+      const slides = pdfSlides(String(res.secure_url), pages, file.name, s);
       onDone(slides);
-      setMsg(`${n} slides added. Open the Slides tab.`);
+      setMsg(`${slides.length} slides added. Open the Slides tab.`);
+      fetch('/api/media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: res.secure_url, kind: 'pdf', name: file.name, pages }),
+      })
+        .then(() => window.dispatchEvent(new Event('media-changed')))
+        .catch(() => {});
     };
     xhr.send(fd);
   }
