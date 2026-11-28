@@ -15,7 +15,7 @@ export default function CameraView({ sound }: { sound: boolean }) {
         const res = await fetch('/api/livekit/view-token', { method: 'POST' });
         const d = await res.json();
         if (!res.ok || h.dead) throw new Error('token');
-        const room = new Room();
+        const room = new Room({ adaptiveStream: false, dynacast: false });
         h.room = room;
         const sync = () => {
           let hasVideo = false;

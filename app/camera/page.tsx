@@ -36,7 +36,7 @@ export default function CameraPage() {
   async function startCamera() {
     try {
       setMsg("ক্যামেরা চালু হচ্ছে...");
-      vTrack.current = await createLocalVideoTrack({ facingMode: facing });
+      vTrack.current = await createLocalVideoTrack({ facingMode: facing, resolution: { width: 1280, height: 720, frameRate: 30 } });
       aTrack.current = await createLocalAudioTrack();
       if (videoRef.current) vTrack.current.attach(videoRef.current);
       setCamOn(true);
@@ -77,7 +77,11 @@ export default function CameraPage() {
 
       const room = new Room();
       await room.connect(data.url, data.token);
-      await room.localParticipant.publishTrack(vTrack.current);
+      await room.localParticipant.publishTrack(vTrack.current, {
+        simulcast: false,
+        videoEncoding: { maxBitrate: 1_800_000, maxFramerate: 30 },
+        degradationPreference: 'maintain-framerate',
+      });
       await room.localParticipant.publishTrack(aTrack.current);
       roomRef.current = room;
 
